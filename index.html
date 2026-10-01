@@ -1,0 +1,1689 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Pointage chantier</title>
+<meta name="theme-color" content="#1B232C">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<style>
+/* Layout: registre de chantier — barre d'en-tête, deux gros boutons de pointage, journal du jour en dessous. Pensé pour tablette/téléphone, gants compris. */
+:root{
+  --bg:#EEF0F2; --panel:#FFFFFF; --ink:#1B232C; --muted:#5D6873; --line:#D5DAE0;
+  --in:#1E8A4C; --in-ink:#FFFFFF; --in-soft:#DDF1E4;
+  --out:#E07A12; --out-ink:#1B1206; --out-soft:#FCE8D2;
+  --accent:#23405E; --warn:#B3261E; --warn-soft:#F9DEDC;
+  --pad:#FBFBF8; --stroke:#10263F;
+  --display:"Barlow Condensed","Roboto Condensed","sans-serif-condensed","Arial Narrow",sans-serif;
+  --body:Roboto,system-ui,-apple-system,"Segoe UI",Arial,sans-serif;
+  --mono:"Roboto Mono","Droid Sans Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12171C; --panel:#1B2229; --ink:#E9EDF1; --muted:#9AA6B2; --line:#2E3842;
+  --in:#2FA862; --in-ink:#06150C; --in-soft:#173524;
+  --out:#F0932F; --out-ink:#1B1206; --out-soft:#3A2712;
+  --accent:#8FB6DD; --warn:#F2A39C; --warn-soft:#3B1D1B;
+  --pad:#F4F4EF; --stroke:#10263F; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12171C; --panel:#1B2229; --ink:#E9EDF1; --muted:#9AA6B2; --line:#2E3842;
+  --in:#2FA862; --in-ink:#06150C; --in-soft:#173524;
+  --out:#F0932F; --out-ink:#1B1206; --out-soft:#3A2712;
+  --accent:#8FB6DD; --warn:#F2A39C; --warn-soft:#3B1D1B;
+  --pad:#F4F4EF; --stroke:#10263F; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.45}
+.wrap{max-width:1040px;margin:0 auto;padding-inline:16px;padding-block:16px 48px;display:grid;gap:16px}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* En-tête */
+.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px;border-bottom:3px solid var(--ink);padding-bottom:12px}
+.site{min-width:0;display:grid;gap:2px}
+.eyebrow{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.siteName{font-family:var(--display);font-weight:800;font-size:clamp(26px,5vw,38px);line-height:1.05;text-transform:uppercase;letter-spacing:.01em;background:none;border:0;padding:0;text-align:left;overflow-wrap:anywhere}
+.siteName[disabled]{cursor:default}
+.siteName .pen{font-size:.5em;color:var(--muted);vertical-align:middle;margin-left:6px}
+.siteEdit{display:flex;gap:8px;flex-wrap:wrap}
+.siteEdit input{font:600 20px var(--body);padding:8px 10px;border:2px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);min-width:0;flex:1 1 220px}
+.clock{text-align:right}
+.clock .t{font-family:var(--mono);font-weight:700;font-size:clamp(30px,6vw,44px);line-height:1}
+.clock .d{color:var(--muted);font-weight:500;text-transform:capitalize}
+
+/* Boutons de pointage */
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.big{border:0;border-radius:10px;padding:22px 16px;display:grid;gap:4px;justify-items:start;text-align:left;min-height:124px;box-shadow:0 2px 0 rgba(0,0,0,.18)}
+.big:active{transform:translateY(2px);box-shadow:none}
+.big[disabled]{opacity:.45;cursor:not-allowed}
+.big .lbl{font-family:var(--display);font-weight:800;font-size:clamp(30px,7vw,48px);letter-spacing:.03em;line-height:1}
+.big .sub{font-weight:600;opacity:.9}
+.big.in{background:var(--in);color:var(--in-ink)}
+.big.out{background:var(--out);color:var(--out-ink)}
+.arrow{font-family:var(--mono);font-size:22px;font-weight:700}
+
+/* Compteurs */
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));background:var(--panel);border:1px solid var(--line);border-radius:10px}
+.stat{padding:12px 14px;display:grid;gap:2px;border-left:1px solid var(--line)}
+.stat:first-child{border-left:0}
+.stat b{font-family:var(--mono);font-size:24px}
+.stat span{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+@media (max-width:560px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.stat:nth-child(3){border-left:0}.stat:nth-child(n+3){border-top:1px solid var(--line)}}
+
+/* Journal */
+.journal{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.jhead{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.jhead h2{margin:0;font-family:var(--display);font-weight:700;font-size:24px;text-transform:uppercase;letter-spacing:.03em}
+.dnav{display:flex;align-items:center;gap:6px}
+.dnav input{font:500 15px var(--body);padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink)}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:7px 12px;font-weight:600}
+.btn:hover{border-color:var(--ink)}
+.btn.primary{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.btn.danger{color:var(--warn);border-color:var(--warn)}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.exports{display:flex;gap:6px;flex-wrap:wrap}
+.chips{display:flex;flex-wrap:wrap;gap:6px;padding:10px 14px;border-bottom:1px solid var(--line)}
+.chip{font-size:13px;font-weight:600;border:1px solid var(--line);border-radius:999px;padding:3px 10px;color:var(--muted)}
+.chip b{color:var(--ink);font-family:var(--mono)}
+.rows{display:grid}
+.row{display:grid;grid-template-columns:minmax(0,1.6fr) repeat(3,minmax(0,.8fr)) 92px;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line);background:none;border-left:0;border-right:0;border-top:0;text-align:left;width:100%}
+.row:hover{background:color-mix(in srgb,var(--line) 30%,transparent)}
+.row.hdr{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;cursor:default}
+.row.hdr:hover{background:none}
+.who{min-width:0}
+.who .n{font-weight:700;overflow-wrap:anywhere}
+.who .s{font-size:14px;color:var(--muted);overflow-wrap:anywhere}
+.tm{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:500}
+.pill{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.04em;padding:2px 8px;border-radius:999px;text-transform:uppercase}
+.pill.on{background:var(--in-soft);color:var(--in)}
+.pill.off{background:var(--line);color:var(--muted)}
+.sigs{display:flex;gap:4px}
+.sigs img,.sigs i{width:42px;height:22px;border-radius:3px;background:var(--pad);border:1px solid var(--line);object-fit:contain;display:block}
+.sigs i{background:transparent;border-style:dashed}
+.lblm{display:none}
+@media (max-width:640px){
+  .row{grid-template-columns:minmax(0,1fr) auto;row-gap:4px}
+  .row.hdr{display:none}
+  .row .c-in,.row .c-out,.row .c-dur{grid-column:1/2;display:flex;gap:6px;font-size:14px}
+  .row .c-sig{grid-column:2/3;grid-row:1/2;justify-self:end}
+  .row .c-state{grid-column:2/3;justify-self:end}
+  .lblm{display:inline;color:var(--muted);font-family:var(--body);font-weight:600}
+}
+.empty{padding:36px 16px;text-align:center;color:var(--muted);display:grid;gap:6px;justify-items:center}
+.empty strong{color:var(--ink);font-family:var(--display);font-size:22px;text-transform:uppercase;letter-spacing:.03em}
+.banner{border:1px solid var(--warn);background:var(--warn-soft);color:var(--ink);padding:10px 14px;border-radius:8px}
+
+/* Fenêtres */
+dialog{border:0;padding:0;border-radius:12px;background:var(--panel);color:var(--ink);width:min(560px,calc(100vw - 24px));max-height:calc(100dvh - 24px);box-shadow:0 20px 60px rgba(0,0,0,.35)}
+dialog::backdrop{background:rgba(10,14,18,.6)}
+.dlg{display:grid;gap:14px;padding:18px}
+.dtitle{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:-18px -18px 0;padding:14px 18px}
+.dtitle h3{margin:0;font-family:var(--display);font-weight:800;font-size:28px;text-transform:uppercase;letter-spacing:.03em}
+.dtitle.in{background:var(--in);color:var(--in-ink)}
+.dtitle.out{background:var(--out);color:var(--out-ink)}
+.dtitle.neutral{background:var(--ink);color:var(--panel)}
+.x{background:none;border:0;font-size:28px;line-height:1;padding:4px 8px;color:inherit}
+.stamp{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--bg);border-radius:8px;padding:10px 12px}
+.stamp .big-t{font-family:var(--mono);font-weight:700;font-size:28px}
+.stamp .small{color:var(--muted);font-weight:500;text-transform:capitalize}
+.stamp .fix{margin-left:auto}
+.fixrow{display:flex;gap:8px;flex-wrap:wrap}
+.fixrow input{font:500 16px var(--mono);padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink)}
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fields .full{grid-column:1/-1}
+label.f{display:grid;gap:4px;font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+label.f input{font:600 18px var(--body);text-transform:none;letter-spacing:0;color:var(--ink);padding:12px;border:2px solid var(--line);border-radius:8px;background:var(--panel);min-width:0;width:100%}
+label.f input:focus{border-color:var(--accent);outline:none}
+.quick{display:grid;gap:6px}
+.quick .ql{font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.qchips{display:flex;gap:6px;flex-wrap:wrap;max-height:112px;overflow:auto}
+.qchip{border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:7px 12px;font-weight:600;font-size:15px}
+.qchip small{color:var(--muted);font-weight:500}
+.qchip:hover{border-color:var(--ink)}
+.sigbox{display:grid;gap:6px}
+.sighead{display:flex;justify-content:space-between;align-items:center}
+.sighead span{font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.pad{position:relative;border:2px dashed var(--line);border-radius:8px;background:var(--pad);touch-action:none;height:170px}
+.pad canvas{position:absolute;inset:0;width:100%;height:100%;border-radius:6px}
+.pad .hint{position:absolute;left:12px;bottom:10px;right:12px;border-top:1px solid #C9CCC2;padding-top:4px;font-size:13px;color:#7B8076;pointer-events:none}
+.pad.signed .hint{visibility:hidden}
+.msg{font-weight:600;color:var(--warn);min-height:0}
+.go{border:0;border-radius:10px;padding:16px;font-family:var(--display);font-weight:800;font-size:26px;text-transform:uppercase;letter-spacing:.04em}
+.go.in{background:var(--in);color:var(--in-ink)}
+.go.out{background:var(--out);color:var(--out-ink)}
+.go[disabled]{opacity:.4;cursor:not-allowed}
+.plist{display:grid;gap:6px;max-height:40vh;overflow:auto}
+.pitem{display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid var(--line);border-radius:8px;padding:12px;background:var(--panel);text-align:left;width:100%}
+.pitem:hover{border-color:var(--out)}
+.pitem .who{flex:1}
+.pitem .tm{color:var(--muted)}
+.picked{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--out-soft);border-radius:8px;padding:10px 12px}
+.detail{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.detail figure{margin:0;display:grid;gap:4px}
+.detail figcaption{font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.detail img,.detail .nosig{width:100%;height:110px;object-fit:contain;background:var(--pad);border:1px solid var(--line);border-radius:6px}
+.detail .nosig{display:grid;place-items:center;color:#7B8076;font-size:14px}
+.confirm{display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:var(--warn-soft);border-radius:8px;padding:10px}
+.toast{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--panel);padding:12px 18px;border-radius:8px;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,.3);max-width:calc(100vw - 32px);z-index:10}
+@media (prefers-reduced-motion:no-preference){.toast{animation:up .18s ease-out}@keyframes up{from{transform:translate(-50%,8px);opacity:0}}}
+
+/* Réglages */
+.rsec{display:grid;gap:8px;padding-bottom:12px;border-bottom:1px solid var(--line)}
+/* Logos */
+.logoslots{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.logoslot{display:grid;gap:8px;align-content:start}
+.logoslot .lt{font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.lprev{height:90px;border:2px dashed var(--line);border-radius:8px;background:#fff;display:grid;place-items:center;padding:8px;color:#7B8076;font-size:14px}
+.lprev img{max-width:100%;max-height:72px;object-fit:contain}
+@media (max-width:480px){.logoslots{grid-template-columns:1fr}}
+
+/* Envoi du soir */
+.evening{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;border:2px solid var(--accent);background:var(--panel);border-radius:10px;padding:10px 14px}
+.evening b{display:block;font-family:var(--display);font-size:20px;text-transform:uppercase;letter-spacing:.03em}
+.evening span{color:var(--muted)}
+.evening .btn{padding:12px 16px;font-size:16px}
+
+/* Accueil sécurité + carte BTP */
+.pill.warn{background:var(--out-soft);color:var(--ink);border:1px solid var(--out)}
+.flags{display:flex;gap:4px;flex-wrap:wrap;margin-top:3px}
+.flags .pill{font-size:11px;padding:1px 7px}
+.acc{display:grid;gap:10px;border-radius:10px;padding:12px;border:2px solid var(--out);background:var(--out-soft)}
+.acc.ok{border-color:var(--in);background:var(--in-soft)}
+.acc .ah{font-weight:700;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.acc .ah small{font-weight:500;color:var(--muted)}
+.accrow{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.tog{display:flex;align-items:center;gap:10px;min-height:56px;padding:10px 12px;border:2px solid var(--line);border-radius:10px;background:var(--panel);font-weight:700;text-align:left;line-height:1.2}
+.tog .box{flex:0 0 28px;height:28px;border:2px solid var(--muted);border-radius:6px;display:grid;place-items:center;font-size:20px;color:transparent;font-weight:800}
+.tog[aria-pressed="true"]{border-color:var(--in)}
+.tog[aria-pressed="true"] .box{background:var(--in);border-color:var(--in);color:var(--in-ink)}
+.tog[disabled]{opacity:.45;cursor:not-allowed}
+.pinfo{display:grid;gap:8px;border-top:1px solid var(--line);padding-top:12px}
+.fbtn{position:relative;overflow:hidden;cursor:pointer}
+.fileov{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:0}
+.pinfo .s{color:var(--muted);font-size:14px}
+.pinfo .line{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+@media (max-width:420px){.accrow{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div class="site">
+      <span class="eyebrow">Registre de présence · hors ligne</span>
+      <button class="siteName" id="siteName" type="button">Chantier<span class="pen" aria-hidden="true">✎</span></button>
+      <form class="siteEdit" id="siteEdit" hidden>
+        <input id="siteInput" maxlength="80" placeholder="Nom du chantier" aria-label="Nom du chantier">
+        <button class="btn primary" type="submit">Enregistrer</button>
+        <button class="btn" type="button" id="siteCancel">Annuler</button>
+      </form>
+    </div>
+    <div class="clock"><div class="t" id="clock">--:--</div><div class="d" id="today"></div></div>
+  </header>
+
+  <div class="banner" id="banner" hidden></div>
+  <div class="evening" id="evening" hidden>
+    <div><b>Envoi du soir</b><span id="eveTxt">La journée n'a pas encore été envoyée.</span></div>
+    <button class="btn primary" type="button" id="eveBtn">Envoyer la journée</button>
+  </div>
+
+  <section class="actions" aria-label="Pointer">
+    <button class="big in" id="btnIn" type="button"><span class="arrow">→</span><span class="lbl">Arrivée</span><span class="sub" id="subIn">Pointer une entrée</span></button>
+    <button class="big out" id="btnOut" type="button"><span class="arrow">←</span><span class="lbl">Départ</span><span class="sub" id="subOut">Personne sur site</span></button>
+  </section>
+
+  <section class="stats" aria-label="Aujourd'hui">
+    <div class="stat"><b id="stPresent">0</b><span>Sur site</span></div>
+    <div class="stat"><b id="stLeft">0</b><span>Partis</span></div>
+    <div class="stat"><b id="stTotal">0</b><span>Pointés</span></div>
+    <div class="stat"><b id="stHours">0 h</b><span>Présence chantier</span></div>
+  </section>
+
+  <section class="journal">
+    <div class="jhead">
+      <h2>Journal</h2>
+      <div class="dnav">
+        <button class="btn" id="prev" type="button" aria-label="Jour précédent">‹</button>
+        <input type="date" id="viewDate" aria-label="Jour affiché">
+        <button class="btn" id="next" type="button" aria-label="Jour suivant">›</button>
+        <button class="btn" id="goToday" type="button">Aujourd'hui</button>
+      </div>
+      <div class="exports" id="exports" hidden>
+        <button class="btn primary" id="sendDay" type="button">Envoyer la journée</button>
+        <button class="btn primary" id="sendMonth" type="button">Envoyer le mois</button>
+        <button class="btn" id="btnLogos" type="button">Réglages</button>
+      </div>
+    </div>
+    <div class="chips" id="chips" hidden></div>
+    <div class="rows" id="rows"></div>
+  </section>
+</div>
+
+<!-- Arrivée -->
+<dialog id="dlgIn" aria-labelledby="tIn">
+  <form class="dlg" id="formIn" method="dialog">
+    <div class="dtitle in"><h3 id="tIn">→ Arrivée</h3><button class="x" type="button" data-close aria-label="Fermer">×</button></div>
+    <div class="stamp">
+      <span class="big-t" id="inTime">--:--</span><span class="small" id="inDate"></span>
+      <button class="btn fix" type="button" id="inFixBtn">Corriger</button>
+    </div>
+    <div class="fixrow" id="inFix" hidden>
+      <input type="date" id="inFixDate" aria-label="Date d'arrivée"><input type="time" id="inFixTime" aria-label="Heure d'arrivée">
+    </div>
+    <div class="quick" id="quick" hidden><span class="ql">Déjà venus — touche pour remplir</span><div class="qchips" id="qchips"></div></div>
+    <div class="fields">
+      <label class="f">Nom<input id="fNom" autocomplete="off" autocapitalize="characters" required></label>
+      <label class="f">Prénom<input id="fPrenom" autocomplete="off" autocapitalize="words" required></label>
+      <label class="f full">Société<input id="fSoc" autocomplete="off" list="socList" required></label>
+      <datalist id="socList"></datalist>
+    </div>
+    <div class="acc" id="accBox" hidden>
+      <div class="ah" id="accHead"></div>
+      <div class="accrow" id="accCtl">
+        <button class="tog" type="button" id="accTog" aria-pressed="false"><span class="box">✓</span><span>Accueil sécurité fait</span></button>
+        <button class="tog" type="button" id="cardTog" aria-pressed="false"><span class="box">✓</span><span>Carte BTP vérifiée</span></button>
+      </div>
+    </div>
+    <div class="sigbox">
+      <div class="sighead"><span>Signature</span><button class="btn" type="button" data-clear="padIn">Effacer</button></div>
+      <div class="pad" id="padIn"><canvas></canvas><div class="hint">Signer ici avec le doigt</div></div>
+    </div>
+    <div class="msg" id="inMsg"></div>
+    <button class="go in" id="goIn" type="submit" disabled>Valider l'arrivée</button>
+  </form>
+</dialog>
+
+<!-- Départ -->
+<dialog id="dlgOut" aria-labelledby="tOut">
+  <form class="dlg" id="formOut" method="dialog">
+    <div class="dtitle out"><h3 id="tOut">← Départ</h3><button class="x" type="button" data-close aria-label="Fermer">×</button></div>
+    <div class="stamp">
+      <span class="big-t" id="outTime">--:--</span><span class="small" id="outDate"></span>
+      <button class="btn fix" type="button" id="outFixBtn">Corriger</button>
+    </div>
+    <div class="fixrow" id="outFix" hidden><input type="time" id="outFixTime" aria-label="Heure de départ"></div>
+    <div id="outPick">
+      <label class="f">Qui part ?<input id="outSearch" autocomplete="off" placeholder="Rechercher un nom ou une société"></label>
+      <div class="plist" id="plist" style="margin-top:8px"></div>
+    </div>
+    <div id="outSign" hidden>
+      <div class="picked"><div class="who"><div class="n" id="pkName"></div><div class="s" id="pkSub"></div></div><button class="btn" type="button" id="pkChange">Changer</button></div>
+      <div class="sigbox" style="margin-top:12px">
+        <div class="sighead"><span>Signature de départ</span><button class="btn" type="button" data-clear="padOut">Effacer</button></div>
+        <div class="pad" id="padOut"><canvas></canvas><div class="hint">Signer ici avec le doigt</div></div>
+      </div>
+    </div>
+    <div class="msg" id="outMsg"></div>
+    <button class="go out" id="goOut" type="submit" disabled>Valider le départ</button>
+  </form>
+</dialog>
+
+<!-- Détail -->
+<!-- Logos -->
+<dialog id="dlgLogos" aria-labelledby="tLogos">
+  <form class="dlg" method="dialog">
+    <div class="dtitle neutral"><h3 id="tLogos">Réglages</h3><button class="x" type="button" data-close aria-label="Fermer">×</button></div>
+    <div class="rsec">
+      <b>Sauvegarde</b>
+      <div class="s" style="color:var(--muted)">À envoyer régulièrement : si la tablette est perdue ou cassée, c'est ce fichier qui permet de tout récupérer.</div>
+      <div class="fixrow">
+        <button class="btn primary" id="bkSend" type="button">Envoyer la sauvegarde</button>
+        <button class="btn" id="bkSave" type="button">Télécharger</button>
+        <label class="btn fbtn" id="bkLoad">Restaurer<input type="file" accept=".json,.txt,application/json,text/plain" class="fileov" id="bkFile" aria-label="Restaurer une sauvegarde"></label>
+      </div>
+    </div>
+    <div class="rsec">
+      <b>Télécharger sur la tablette</b>
+      <div class="fixrow">
+        <button class="btn" id="expSheet" type="button">PDF du jour</button>
+        <button class="btn" id="expMonth" type="button">Excel du mois</button>
+      </div>
+    </div>
+    <b>Logos des exports</b>
+    <div class="s" style="color:var(--muted)">Ils apparaissent en haut du PDF du jour et de l'Excel. Choisis une image (PNG ou JPG) dans la galerie ou les fichiers de la tablette.</div>
+    <div class="logoslots">
+      <div class="logoslot" data-slot="entreprise">
+        <span class="lt">Logo entreprise</span>
+        <div class="lprev" id="lp_entreprise"><span>Aucun logo</span></div>
+        <div class="fixrow"><label class="btn fbtn">Choisir une image<input type="file" accept="image/png,image/jpeg,image/webp" class="fileov" data-logo="entreprise" aria-label="Logo entreprise"></label><button class="btn danger" type="button" data-logodel="entreprise">Retirer</button></div>
+      </div>
+      <div class="logoslot" data-slot="client">
+        <span class="lt">Logo client / chantier</span>
+        <div class="lprev" id="lp_client"><span>Aucun logo</span></div>
+        <div class="fixrow"><label class="btn fbtn">Choisir une image<input type="file" accept="image/png,image/jpeg,image/webp" class="fileov" data-logo="client" aria-label="Logo client"></label><button class="btn danger" type="button" data-logodel="client">Retirer</button></div>
+      </div>
+    </div>
+    <div class="s" style="color:var(--muted);font-size:13px">Version de l'appli : <b>v10 · 1er octobre 2026</b></div>
+  </form>
+</dialog>
+
+<!-- Envoyer -->
+<dialog id="dlgShare" aria-labelledby="tShare">
+  <form class="dlg" method="dialog" id="formShare">
+    <div class="dtitle neutral"><h3 id="tShare">Envoyer</h3><button class="x" type="button" data-close aria-label="Fermer">×</button></div>
+    <div class="s" id="shWhat" style="color:var(--muted)"></div>
+    <div class="msg" id="shMsg"></div>
+    <button class="go in" id="shGo" type="submit" disabled>Préparation…</button>
+    <div class="s" style="color:var(--muted);font-size:14px">Avec Gmail, le mail part tout seul dès que la tablette retrouve du réseau.</div>
+  </form>
+</dialog>
+
+<dialog id="dlgDetail" aria-labelledby="tDet">
+  <form class="dlg" id="formDet" method="dialog">
+    <div class="dtitle neutral"><h3 id="tDet">Pointage</h3><button class="x" type="button" data-close aria-label="Fermer">×</button></div>
+    <div class="who"><div class="n" id="dName" style="font-size:20px"></div><div class="s" id="dSoc"></div></div>
+    <div class="detail">
+      <figure><figcaption>Arrivée</figcaption><div id="dSigIn"></div><input type="time" id="dIn" class="num" aria-label="Heure d'arrivée" style="font:500 16px var(--mono);padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink)"></figure>
+      <figure><figcaption>Départ</figcaption><div id="dSigOut"></div><input type="time" id="dOut" aria-label="Heure de départ" style="font:500 16px var(--mono);padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink)"></figure>
+    </div>
+    <div class="pinfo" id="dPerson">
+      <div class="line"><span id="dAcc"></span><button class="btn" type="button" id="dAccBtn" hidden>Accueil fait aujourd'hui</button></div>
+      <div class="line"><span id="dCardLbl">Carte BTP</span><button class="btn" type="button" id="dCardOk" hidden>Carte vérifiée aujourd'hui</button></div>
+    </div>
+    <div class="msg" id="dMsg"></div>
+    <div class="fixrow" id="dActions">
+      <button class="btn primary" type="button" id="dSave">Enregistrer les heures</button>
+      <button class="btn danger" type="button" id="dDel">Supprimer</button>
+    </div>
+    <div class="confirm" id="dConfirm" hidden>
+      <span>Supprimer définitivement ce pointage ?</span>
+      <button class="btn danger" type="button" id="dDelYes">Oui, supprimer</button>
+      <button class="btn" type="button" id="dDelNo">Non</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const pad2 = n => String(n).padStart(2, "0");
+  const dayKey = d => `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+  const hhmm = ms => { const d = new Date(ms); return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`; };
+  const longDate = d => d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  const fromKey = k => { const [y,m,d] = k.split("-").map(Number); return new Date(y, m-1, d); };
+  const dur = ms => { if (ms < 0) ms = 0; const m = Math.round(ms/60000); return `${Math.floor(m/60)} h ${pad2(m%60)}`; };
+  const norm = s => (s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().trim();
+  const slug = s => norm(s).replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"") || "x";
+  const personKey = (n,p,s) => `${slug(n)}.${slug(p)}.${slug(s)}`.slice(0,190);
+  const capFirst = s => s.trim().toLowerCase().replace(/(^|[\s-])(\p{L})/gu, (m,a,b) => a + b.toUpperCase());
+  function el(tag, attrs = {}, ...kids) {
+    const e = document.createElement(tag);
+    for (const [k,v] of Object.entries(attrs)) {
+      if (k === "class") e.className = v; else if (k === "text") e.textContent = v;
+      else if (k.startsWith("on")) e.addEventListener(k.slice(2), v); else e.setAttribute(k, v);
+    }
+    for (const c of kids) if (c != null) e.append(c);
+    return e;
+  }
+  let toastT;
+  function toast(t) { const x = $("toast"); x.textContent = t; x.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => x.hidden = true, Math.max(3200, t.length * 55)); }
+
+  // ---------- État
+  const S = {
+    db: null, canWrite: true, today: dayKey(new Date()), view: dayKey(new Date()),
+    todayRows: [], viewRows: [], people: [], byId: {}, site: "", logos: { entreprise: null, client: null },
+    unsubToday: null, unsubView: null
+  };
+
+  // ---------- Horloge
+  function tick() {
+    const now = new Date();
+    $("clock").textContent = hhmm(now);
+    $("today").textContent = longDate(now);
+    if ($("dlgIn").open && $("inFix").hidden) setStamp("in", now);
+    if ($("dlgOut").open && $("outFix").hidden) setStamp("out", now);
+    const k = dayKey(now);
+    if (k !== S.today) { const follow = S.view === S.today; S.today = k; subToday(); if (follow) setView(k); }
+    render();
+    if (typeof eveningCheck === "function") eveningCheck();
+  }
+  function setStamp(which, d) {
+    $(which+"Time").textContent = hhmm(d);
+    $(which+"Date").textContent = longDate(d);
+  }
+
+  // ---------- Signature
+  function makePad(id) {
+    const box = $(id), cv = box.querySelector("canvas"), ctx = cv.getContext("2d");
+    let drawing = false, has = false, last = null, onChange = () => {};
+    function size() {
+      const r = box.getBoundingClientRect(), dpr = Math.max(1, window.devicePixelRatio || 1);
+      if (!r.width) return;
+      cv.width = Math.round(r.width*dpr); cv.height = Math.round(r.height*dpr);
+      ctx.setTransform(dpr,0,0,dpr,0,0); ctx.lineCap = "round"; ctx.lineJoin = "round";
+      ctx.strokeStyle = getComputedStyle(box).getPropertyValue("--stroke").trim() || "#10263F";
+    }
+    function pos(e) { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top, p: e.pressure || .5 }; }
+    cv.addEventListener("pointerdown", e => { e.preventDefault(); cv.setPointerCapture(e.pointerId); drawing = true; last = pos(e);
+      ctx.beginPath(); ctx.arc(last.x, last.y, 1.2, 0, Math.PI*2); ctx.fillStyle = ctx.strokeStyle; ctx.fill(); });
+    cv.addEventListener("pointermove", e => { if (!drawing) return; const p = pos(e);
+      ctx.lineWidth = 1.8 + p.p*1.6; ctx.beginPath(); ctx.moveTo(last.x,last.y); ctx.lineTo(p.x,p.y); ctx.stroke(); last = p;
+      if (!has) { has = true; box.classList.add("signed"); onChange(); } });
+    const end = () => { drawing = false; };
+    cv.addEventListener("pointerup", end); cv.addEventListener("pointercancel", end);
+    function clear() { ctx.clearRect(0,0,cv.width,cv.height); has = false; box.classList.remove("signed"); onChange(); }
+    function image() {
+      // Exporte une version réduite (max 480 px de large) pour rester léger
+      const w = Math.min(480, cv.width), h = Math.round(cv.height * w / cv.width);
+      const o = document.createElement("canvas"); o.width = w; o.height = h;
+      o.getContext("2d").drawImage(cv, 0, 0, w, h);
+      return o.toDataURL("image/png");
+    }
+    return { size, clear, image, get signed() { return has; }, set onChange(f) { onChange = f; } };
+  }
+  const padIn = makePad("padIn"), padOut = makePad("padOut");
+  document.querySelectorAll("[data-clear]").forEach(b => b.addEventListener("click", () => (b.dataset.clear === "padIn" ? padIn : padOut).clear()));
+
+  // ---------- Données
+  function subToday() {
+    if (!S.db) return;
+    S.unsubToday && S.unsubToday();
+    S.unsubToday = S.db.collection("pointages").where("date","==",S.today).onSnapshot(
+      snap => { S.todayRows = snap.docs.map(d => ({ id: d.id, ...d.data() })); if (S.view === S.today) S.viewRows = S.todayRows; render(); setTimeout(eveningCheck, 600); },
+      err => showBanner("Connexion au registre interrompue. Recharge la page."));
+  }
+  function setView(k) {
+    S.view = k; $("viewDate").value = k;
+    S.unsubView && S.unsubView(); S.unsubView = null;
+    if (k === S.today) { S.viewRows = S.todayRows; render(); return; }
+    S.viewRows = []; render();
+    if (!S.db) return;
+    S.unsubView = S.db.collection("pointages").where("date","==",k).onSnapshot(
+      snap => { S.viewRows = snap.docs.map(d => ({ id: d.id, ...d.data() })); render(); }, () => {});
+  }
+  function showBanner(t) { const b = $("banner"); b.textContent = t; b.hidden = !t; }
+
+  // ---------- Rendu
+  function render() {
+    const now = Date.now();
+    const present = S.todayRows.filter(r => !r.td);
+    const left = S.todayRows.filter(r => r.td);
+    // Présence chantier du jour : de la 1re arrivée au dernier départ (ou maintenant si quelqu'un est encore sur site)
+    const firstIn = S.todayRows.reduce((m, r) => Math.min(m, r.ta), Infinity);
+    const lastOut = present.length ? now : S.todayRows.reduce((m, r) => Math.max(m, r.td || 0), 0);
+    const hours = S.todayRows.length && lastOut > firstIn ? lastOut - firstIn : 0;
+    $("stPresent").textContent = present.length;
+    $("stLeft").textContent = left.length;
+    $("stTotal").textContent = S.todayRows.length;
+    { const mins = Math.round(hours / 60000); $("stHours").textContent = `${Math.floor(mins / 60)} h ${pad2(mins % 60)}`; }
+    $("subIn").textContent = S.todayRows.length ? `${S.todayRows.length} pointé${S.todayRows.length>1?"s":""} aujourd'hui` : "Pointer une entrée";
+    $("subOut").textContent = present.length ? `${present.length} sur site` : "Personne sur site";
+    $("btnIn").disabled = !S.db || !S.canWrite;
+    $("btnOut").disabled = !S.db || !S.canWrite || !present.length;
+    $("exports").hidden = !S.db;
+    $("next").disabled = S.view >= S.today;
+
+    // Chips par société
+    const rows = [...S.viewRows].sort((a,b) => a.ta - b.ta);
+    const bySoc = {};
+    rows.forEach(r => { bySoc[r.societe] = (bySoc[r.societe]||0) + 1; });
+    const chips = $("chips"); chips.replaceChildren();
+    Object.entries(bySoc).sort((a,b) => b[1]-a[1]).forEach(([s,n]) => chips.append(el("span",{class:"chip"}, `${s} `, el("b",{text:String(n)}))));
+    chips.hidden = !rows.length;
+
+    const box = $("rows"); box.replaceChildren();
+    if (!S.db) {
+      box.append(el("div",{class:"empty"}, el("strong",{text:"Stockage indisponible"}), el("span",{text:"Le navigateur de cette tablette refuse l'enregistrement. Ouvre l'appli depuis son icône, dans Chrome, hors navigation privée."})));
+      return;
+    }
+    if (!rows.length) {
+      const isToday = S.view === S.today;
+      box.append(el("div",{class:"empty"},
+        el("strong",{text: isToday ? "Aucun pointage aujourd'hui" : "Aucun pointage ce jour-là"}),
+        el("span",{text: isToday ? "Appuie sur ARRIVÉE à chaque personne qui entre sur le chantier. Elle apparaîtra ici avec son heure et sa signature." : longDate(fromKey(S.view))})));
+      return;
+    }
+    box.append(el("div",{class:"row hdr"}, el("span",{text:"Intervenant"}), el("span",{text:"Arrivée"}), el("span",{text:"Départ"}), el("span",{text:"Durée"}), el("span",{text:"Signatures"})));
+    rows.forEach(r => {
+      const sig = src => src ? el("img",{src, alt:"Signature"}) : el("i",{"aria-label":"Pas de signature"});
+      const pp = S.byId[r.personKey] || {};
+      const flags = [];
+      if (!pp.accueil) flags.push(el("span",{class:"pill warn", text:"⚠ Accueil à faire"}));
+      if (!pp.carte) flags.push(el("span",{class:"pill warn", text:"⚠ Carte BTP"}));
+      const btn = el("button",{class:"row", type:"button", onclick: () => openDetail(r)},
+        el("div",{class:"who"}, el("div",{class:"n", text:`${r.nom} ${r.prenom}`}), el("div",{class:"s", text:r.societe}), flags.length ? el("div",{class:"flags"}, ...flags) : null),
+        el("div",{class:"tm c-in"}, el("span",{class:"lblm", text:"Arrivée"}), hhmm(r.ta)),
+        el("div",{class:"tm c-out"}, el("span",{class:"lblm", text:"Départ"}), r.td ? hhmm(r.td) : el("span",{class:"pill on", text:"Sur site"})),
+        el("div",{class:"tm c-dur"}, el("span",{class:"lblm", text:"Durée"}), dur((r.td || (S.view===S.today ? now : r.ta)) - r.ta)),
+        el("div",{class:"sigs c-sig"}, sig(r.sigIn), sig(r.sigOut)));
+      box.append(btn);
+    });
+  }
+
+  // ---------- Arrivée
+  let inWhen = null;
+  function openIn() {
+    $("formIn").reset(); $("inMsg").textContent = ""; $("inFix").hidden = true; inWhen = null; inAcc = false; inCard = false;
+    const now = new Date(); setStamp("in", now);
+    $("inFixDate").value = dayKey(now); $("inFixTime").value = hhmm(now);
+    fillQuick(""); fillSocList();
+    $("dlgIn").showModal(); padIn.size(); padIn.clear(); checkIn();
+    setTimeout(() => $("fNom").focus(), 50);
+  }
+  function fillSocList() {
+    const socs = [...new Set(S.people.map(p => p.societe))].sort();
+    $("socList").replaceChildren(...socs.map(s => el("option",{value:s})));
+  }
+  function fillQuick(q) {
+    const presentKeys = new Set(S.todayRows.filter(r => !r.td).map(r => r.personKey));
+    const nq = norm(q);
+    const list = S.people.filter(p => !presentKeys.has(p.id))
+      .filter(p => !nq || norm(`${p.nom} ${p.prenom} ${p.societe}`).includes(nq))
+      .sort((a,b) => (b.lastSeen||0) - (a.lastSeen||0)).slice(0, 12);
+    const box = $("qchips"); box.replaceChildren();
+    list.forEach(p => box.append(el("button",{class:"qchip", type:"button", onclick: () => {
+      $("fNom").value = p.nom; $("fPrenom").value = p.prenom; $("fSoc").value = p.societe; checkIn();
+    }}, `${p.nom} ${p.prenom} `, el("small",{text:"· "+p.societe}))));
+    $("quick").hidden = !list.length;
+  }
+  function checkIn() {
+    const n = $("fNom").value.trim(), p = $("fPrenom").value.trim(), s = $("fSoc").value.trim();
+    let msg = "";
+    if (n && p && s) {
+      const k = personKey(n,p,s);
+      const already = S.todayRows.find(r => r.personKey === k && !r.td);
+      if (already) msg = `${n.toUpperCase()} ${capFirst(p)} est déjà sur site depuis ${hhmm(already.ta)}.`;
+    }
+    $("inMsg").textContent = msg;
+    refreshAcc();
+    $("goIn").disabled = !(n && p && s && padIn.signed && !msg);
+  }
+
+  // ---------- Accueil sécurité + carte BTP
+  let inAcc = false, inCard = false;
+  const shortDate = ms => new Date(ms).toLocaleDateString("fr-FR");
+  function refreshAcc() {
+    const n = $("fNom").value.trim(), p = $("fPrenom").value.trim(), s = $("fSoc").value.trim();
+    const box = $("accBox");
+    if (!(n && p && s)) { box.hidden = true; return; }
+    const pp = S.byId[personKey(n,p,s)];
+    // La carte BTP n'est demandée qu'à la toute première arrivée sur le chantier
+    const first = !pp, accDone = !!(pp && pp.accueil), cardDone = !!(pp && pp.carte);
+    box.hidden = false;
+    box.classList.toggle("ok", (accDone || inAcc) && (!first || inCard));
+    const head = $("accHead"); head.replaceChildren();
+    if (!first && accDone) {
+      head.append(`✓ Accueil sécurité fait le ${shortDate(pp.accueil)}`, el("small",{text: cardDone ? "· carte BTP vérifiée" : ""}));
+    } else {
+      head.append(first ? "Première venue sur ce chantier" : "Accueil sécurité à faire", el("small",{text:"· coche une fois fait"}));
+    }
+    $("accCtl").hidden = !first && accDone;
+    $("accTog").hidden = accDone;
+    $("accTog").setAttribute("aria-pressed", String(inAcc));
+    $("cardTog").hidden = !first;
+    $("cardTog").setAttribute("aria-pressed", String(inCard));
+  }
+  $("accTog").addEventListener("click", () => { inAcc = !inAcc; refreshAcc(); });
+  $("cardTog").addEventListener("click", () => { inCard = !inCard; refreshAcc(); });
+  padIn.onChange = checkIn;
+  ["fNom","fPrenom","fSoc"].forEach(id => $(id).addEventListener("input", () => { if (id === "fNom") fillQuick($("fNom").value); checkIn(); }));
+  $("inFixBtn").addEventListener("click", () => { $("inFix").hidden = !$("inFix").hidden; });
+  $("formIn").addEventListener("submit", async e => {
+    e.preventDefault(); if ($("goIn").disabled) return;
+    const nom = $("fNom").value.trim().toUpperCase(), prenom = capFirst($("fPrenom").value), societe = $("fSoc").value.trim().toUpperCase();
+    let when = new Date();
+    if (!$("inFix").hidden && $("inFixDate").value && $("inFixTime").value) {
+      const [h,m] = $("inFixTime").value.split(":").map(Number); when = fromKey($("inFixDate").value); when.setHours(h,m,0,0);
+    }
+    const k = personKey(nom, prenom, societe);
+    $("goIn").disabled = true;
+    try {
+      await S.db.collection("pointages").add({ nom, prenom, societe, personKey: k, date: dayKey(when), ta: when.getTime(), td: null, sigIn: padIn.image(), sigOut: null });
+      const prev = S.byId[k] || {};
+      const carte = prev.carte || (!S.byId[k] && inCard ? when.getTime() : null);
+      const accueil = prev.accueil || (inAcc ? when.getTime() : null);
+      await S.db.doc("personnes/" + k).set({ ...prev, nom, prenom, societe, lastSeen: when.getTime(), accueil, carte });
+      $("dlgIn").close();
+      const todo = [accueil ? "" : "accueil", carte ? "" : "carte BTP"].filter(Boolean);
+      toast(`Arrivée de ${nom} ${prenom} à ${hhmm(when)}${todo.length ? " · à faire : " + todo.join(", ") : ""}`);
+    } catch (err) { $("inMsg").textContent = writeError(err); $("goIn").disabled = false; }
+  });
+
+  // ---------- Départ
+  let outRow = null;
+  function openOut() {
+    outRow = null; $("outMsg").textContent = ""; $("outSearch").value = ""; $("outFix").hidden = true;
+    const now = new Date(); setStamp("out", now); $("outFixTime").value = hhmm(now);
+    $("outPick").hidden = false; $("outSign").hidden = true; $("goOut").disabled = true;
+    fillPresent(""); $("dlgOut").showModal();
+  }
+  function fillPresent(q) {
+    const nq = norm(q);
+    const list = S.todayRows.filter(r => !r.td).filter(r => !nq || norm(`${r.nom} ${r.prenom} ${r.societe}`).includes(nq)).sort((a,b) => a.nom.localeCompare(b.nom));
+    const box = $("plist"); box.replaceChildren();
+    if (!list.length) box.append(el("div",{class:"empty", style:"padding:16px"}, el("span",{text: q ? "Personne ne correspond." : "Personne n'est sur site."})));
+    list.forEach(r => box.append(el("button",{class:"pitem", type:"button", onclick: () => pickOut(r)},
+      el("div",{class:"who"}, el("div",{class:"n", text:`${r.nom} ${r.prenom}`}), el("div",{class:"s", text:r.societe})),
+      el("span",{class:"tm", text:"depuis " + hhmm(r.ta)}))));
+  }
+  function pickOut(r) {
+    outRow = r; $("pkName").textContent = `${r.nom} ${r.prenom}`; $("pkSub").textContent = `${r.societe} · arrivé à ${hhmm(r.ta)}`;
+    $("outPick").hidden = true; $("outSign").hidden = false; padOut.size(); padOut.clear(); checkOut();
+  }
+  function checkOut() { $("goOut").disabled = !(outRow && padOut.signed); }
+  padOut.onChange = checkOut;
+  $("outSearch").addEventListener("input", e => fillPresent(e.target.value));
+  $("pkChange").addEventListener("click", () => { outRow = null; $("outPick").hidden = false; $("outSign").hidden = true; checkOut(); });
+  $("outFixBtn").addEventListener("click", () => { $("outFix").hidden = !$("outFix").hidden; });
+  $("formOut").addEventListener("submit", async e => {
+    e.preventDefault(); if ($("goOut").disabled || !outRow) return;
+    let when = new Date();
+    if (!$("outFix").hidden && $("outFixTime").value) { const [h,m] = $("outFixTime").value.split(":").map(Number); when = fromKey(outRow.date); when.setHours(h,m,0,0); }
+    if (when.getTime() < outRow.ta) { $("outMsg").textContent = "L'heure de départ est avant l'heure d'arrivée."; return; }
+    $("goOut").disabled = true;
+    try {
+      await S.db.doc("pointages/" + outRow.id).update({ td: when.getTime(), sigOut: padOut.image() });
+      $("dlgOut").close(); toast(`Départ de ${outRow.nom} ${outRow.prenom} à ${hhmm(when)}`);
+    } catch (err) { $("outMsg").textContent = writeError(err); $("goOut").disabled = false; }
+  });
+
+  // ---------- Détail / correction
+  let detRow = null;
+  function openDetail(r) {
+    detRow = r; $("dMsg").textContent = ""; $("dConfirm").hidden = true; $("dActions").hidden = false;
+    $("dName").textContent = `${r.nom} ${r.prenom}`; $("dSoc").textContent = `${r.societe} · ${longDate(fromKey(r.date))}`;
+    const sig = src => src ? el("img",{src, alt:"Signature"}) : el("div",{class:"nosig", text:"Non signé"});
+    $("dSigIn").replaceChildren(sig(r.sigIn)); $("dSigOut").replaceChildren(sig(r.sigOut));
+    $("dIn").value = hhmm(r.ta); $("dOut").value = r.td ? hhmm(r.td) : "";
+    [$("dIn"),$("dOut"),$("dSave"),$("dDel")].forEach(x => x.disabled = !S.canWrite);
+    paintPerson();
+    $("dlgDetail").showModal();
+  }
+  async function paintPerson() {
+    const r = detRow; if (!r) return;
+    const p = S.byId[r.personKey];
+    $("dAcc").textContent = p && p.accueil ? `✓ Accueil sécurité fait le ${shortDate(p.accueil)}` : "⚠ Accueil sécurité non enregistré";
+    $("dAccBtn").hidden = !p || !!p.accueil || !S.canWrite;
+    $("dCardLbl").textContent = p && p.carte ? (typeof p.carte === "number" ? `✓ Carte BTP vérifiée le ${shortDate(p.carte)}` : "✓ Carte BTP vérifiée") : "⚠ Carte BTP non vérifiée";
+    $("dCardOk").hidden = !p || !!p.carte || !S.canWrite;
+  }
+  $("dCardOk").addEventListener("click", async () => {
+    const k = detRow.personKey, t = Date.now();
+    try {
+      await S.db.doc("personnes/" + k).update({ carte: t });
+      if (S.byId[k]) S.byId[k] = { ...S.byId[k], carte: t };
+      toast("Carte BTP vérifiée"); render(); paintPerson();
+    } catch (err) { $("dMsg").textContent = writeError(err); }
+  });
+  $("dAccBtn").addEventListener("click", async () => {
+    const k = detRow.personKey, t = Date.now();
+    try {
+      await S.db.doc("personnes/" + k).update({ accueil: t });
+      if (S.byId[k]) S.byId[k] = { ...S.byId[k], accueil: t };
+      toast("Accueil sécurité enregistré"); render(); paintPerson();
+    } catch (err) { $("dMsg").textContent = writeError(err); }
+  });
+  $("dSave").addEventListener("click", async () => {
+    const base = fromKey(detRow.date);
+    const at = t => { const [h,m] = t.split(":").map(Number); const d = new Date(base); d.setHours(h,m,0,0); return d.getTime(); };
+    if (!$("dIn").value) { $("dMsg").textContent = "L'heure d'arrivée est obligatoire."; return; }
+    const ta = at($("dIn").value), td = $("dOut").value ? at($("dOut").value) : null;
+    if (td !== null && td < ta) { $("dMsg").textContent = "L'heure de départ est avant l'heure d'arrivée."; return; }
+    try { await S.db.doc("pointages/" + detRow.id).update({ ta, td }); $("dlgDetail").close(); toast("Heures corrigées"); }
+    catch (err) { $("dMsg").textContent = writeError(err); }
+  });
+  $("dDel").addEventListener("click", () => { $("dConfirm").hidden = false; $("dActions").hidden = true; });
+  $("dDelNo").addEventListener("click", () => { $("dConfirm").hidden = true; $("dActions").hidden = false; });
+  $("dDelYes").addEventListener("click", async () => {
+    try { await S.db.doc("pointages/" + detRow.id).delete(); $("dlgDetail").close(); toast("Pointage supprimé"); }
+    catch (err) { $("dMsg").textContent = writeError(err); }
+  });
+
+  function writeError(err) {
+    if (err && err.code === "invalid_argument") { S.canWrite = false; render(); return "Tu n'as pas le droit d'enregistrer dans ce registre (accès en lecture seule)."; }
+    if (err && err.code === "quota_exceeded") return "Le registre est plein. Exporte puis supprime d'anciens pointages.";
+    return "Enregistrement impossible pour l'instant. Réessaie dans un instant.";
+  }
+
+  // ---------- Nom du chantier
+  $("siteName").addEventListener("click", () => {
+    if (!S.db || !S.canWrite) return;
+    $("siteInput").value = S.site; $("siteName").hidden = true; $("siteEdit").hidden = false; $("siteInput").focus();
+  });
+  $("siteCancel").addEventListener("click", () => { $("siteEdit").hidden = true; $("siteName").hidden = false; });
+  $("siteEdit").addEventListener("submit", async e => {
+    e.preventDefault(); const v = $("siteInput").value.trim();
+    $("siteEdit").hidden = true; $("siteName").hidden = false;
+    if (v === S.site) return;
+    try { await S.db.doc("config/chantier").set({ nom: v }); } catch (err) { toast(writeError(err)); }
+  });
+  function paintSite() {
+    const b = $("siteName"); b.replaceChildren(document.createTextNode(S.site || "Nom du chantier"));
+    if (S.db && S.canWrite) b.append(el("span",{class:"pen", "aria-hidden":"true", text:"✎"}));
+    b.disabled = !(S.db && S.canWrite);
+  }
+
+  // ---------- Exports
+  let downloads = null;
+  async function save(filename, data) {
+    if (!downloads) { toast("Téléchargement indisponible."); return; }
+    try { const r = await downloads.save({ filename, data }); if (r && r.status === "saved") toast("Fichier enregistré : " + filename); }
+    catch (err) {
+      const c = err && err.code;
+      if (c === "declined") return;
+      if (c === "rate_limited") toast("Une demande d'enregistrement est déjà ouverte. Valide-la ou réessaie.");
+      else toast("Téléchargement impossible (" + (c || "erreur") + ").");
+    }
+  }
+  const safeName = () => slug(S.site || "chantier");
+  const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+  // ---------- PDF du jour (générateur autonome, A4 paysage, signatures en JPEG)
+  const PDFW = (() => {
+    const WIN = { "€":128,"‚":130,"„":132,"…":133,"‘":145,"’":146,"“":147,"”":148,"•":149,"–":150,"—":151,"œ":156,"Œ":140,"Ÿ":159 };
+    const enc = t => { let o = ""; for (const ch of String(t ?? "")) { const c = ch.codePointAt(0);
+      let b = c < 256 ? c : (WIN[ch] || 63); if (b < 32) b = 32; const x = String.fromCharCode(b);
+      o += (x === "(" || x === ")" || x === "\\") ? "\\" + x : x; } return o; };
+    const cw = (ch, sz, bold) => sz * (/[A-ZÀ-ÝMW@]/.test(ch) ? (bold ? .7 : .66) : /[il.,:;'|! ]/.test(ch) ? .28 : /[mw]/.test(ch) ? .8 : /[0-9]/.test(ch) ? .56 : (bold ? .58 : .53));
+    const width = (t, sz, bold) => [...String(t ?? "")].reduce((a, c) => a + cw(c, sz, bold), 0);
+    const fit = (t, w, sz, bold) => { t = String(t ?? ""); if (width(t, sz, bold) <= w) return t;
+      while (t.length && width(t + "…", sz, bold) > w) t = t.slice(0, -1); return t + "…"; };
+    const toBytes = str => { const u = new Uint8Array(str.length); for (let i = 0; i < str.length; i++) u[i] = str.charCodeAt(i) & 255; return u; };
+    function jpeg(dataUrl, maxW = 360) {
+      return new Promise(res => {
+        if (!dataUrl) return res(null);
+        const img = new Image();
+        img.onload = () => {
+          const k = Math.min(1, maxW / (img.naturalWidth || 1));
+          const c = document.createElement("canvas"); c.width = Math.max(1, Math.round(img.naturalWidth * k)); c.height = Math.max(1, Math.round(img.naturalHeight * k));
+          const x = c.getContext("2d"); x.fillStyle = "#fff"; x.fillRect(0, 0, c.width, c.height); x.drawImage(img, 0, 0, c.width, c.height);
+          const b = atob(c.toDataURL("image/jpeg", .85).split(",")[1]);
+          res({ w: c.width, h: c.height, bytes: toBytes(b) });
+        };
+        img.onerror = () => res(null); img.src = dataUrl;
+      });
+    }
+    /** pages: [{ops, imgs:[index]}]; images: [{w,h,bytes}] → Uint8Array */
+    function pack(pages, images, W, H) {
+      const objs = []; // each: array of chunks (Uint8Array)
+      const add = chunks => { objs.push(chunks); return objs.length; };
+      const S = t => toBytes(t);
+      add([S("<< /Type /Catalog /Pages 2 0 R >>")]);
+      add(null); // pages placeholder
+      const fR = add([S("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>")]);
+      const fB = add([S("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>")]);
+      const imgIds = images.map(im => add([S(`<< /Type /XObject /Subtype /Image /Width ${im.w} /Height ${im.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${im.bytes.length} >>\nstream\n`), im.bytes, S("\nendstream")]));
+      const kids = [];
+      pages.forEach(pg => {
+        const body = S(pg.ops);
+        const cId = add([S(`<< /Length ${body.length} >>\nstream\n`), body, S("\nendstream")]);
+        const xo = pg.imgs.map(i => `/Im${i} ${imgIds[i]} 0 R`).join(" ");
+        kids.push(add([S(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /Font << /F1 ${fR} 0 R /F2 ${fB} 0 R >>${xo ? ` /XObject << ${xo} >>` : ""} >> /Contents ${cId} 0 R >>`)]));
+      });
+      objs[1] = [S(`<< /Type /Pages /Kids [${kids.map(k => k + " 0 R").join(" ")}] /Count ${kids.length} >>`)];
+      const parts = [S("%PDF-1.4\n%\xE2\xE3\xCF\xD3\n")]; let off = parts[0].length; const offs = [];
+      objs.forEach((chunks, i) => { offs.push(off); const head = S(`${i + 1} 0 obj\n`), tail = S("\nendobj\n");
+        [head, ...chunks, tail].forEach(c => { parts.push(c); off += c.length; }); });
+      const xref = `xref\n0 ${objs.length + 1}\n0000000000 65535 f \n` + offs.map(o => String(o).padStart(10, "0") + " 00000 n \n").join("") +
+        `trailer\n<< /Size ${objs.length + 1} /Root 1 0 R >>\nstartxref\n${off}\n%%EOF`;
+      parts.push(S(xref));
+      const out = new Uint8Array(parts.reduce((a, b) => a + b.length, 0)); let p = 0; parts.forEach(c => { out.set(c, p); p += c.length; });
+      return out;
+    }
+    return { enc, fit, width, jpeg, pack };
+  })();
+
+  async function buildDayPdf({ site, dayLabel, rows, byId, logos = {} }) {
+    const W = 842, H = 595, M = 30;
+    const cols = [["#",20],["Nom",108],["Prénom",84],["Société",112],["Arrivée",48],["Signature",104],["Départ",48],["Signature",104],["Durée",54],["Accueil",100]];
+    const images = [], pages = [];
+    const sigs = await Promise.all(rows.map(async r => [await PDFW.jpeg(r.sigIn), await PDFW.jpeg(r.sigOut)]));
+    // Logos en haut à droite : entreprise puis client, hauteur max 34 pt
+    const logoImgs = (await Promise.all([logos.entreprise, logos.client].map(src => PDFW.jpeg(src, 600)))).filter(Boolean);
+    const LH = 34, LWMAX = 130, LGAP = 12;
+    const logoBoxes = logoImgs.map(im => { const k = Math.min(LH / im.h, LWMAX / im.w); return { im, w: im.w * k, h: im.h * k }; });
+    const logosW = logoBoxes.reduce((a, b) => a + b.w, 0) + Math.max(0, logoBoxes.length - 1) * LGAP;
+    const txt = (x, y, t, sz = 9, bold = false, gray = 0) => `BT /${bold ? "F2" : "F1"} ${sz} Tf ${gray} g ${x.toFixed(1)} ${(H - y).toFixed(1)} Td (${PDFW.enc(t)}) Tj ET\n`;
+    const rect = (x, y, w, h, fill) => `${fill ? `${fill} g ` : ""}${x.toFixed(1)} ${(H - y - h).toFixed(1)} ${w.toFixed(1)} ${h.toFixed(1)} re ${fill ? "f" : "S"}\n`;
+    const exported = new Date().toLocaleString("fr-FR");
+    const ROW = 32, HEAD = 20, bottom = H - M - 16;
+    let i = 0, pageNo = 0;
+    const total = rows.length;
+    const pageBuf = [];
+    do {
+      pageNo++;
+      let ops = "0.6 G 0.5 w\n", imgs = [], y = M;
+      const titleW = W - 2 * M - (logosW ? logosW + 16 : 0);
+      ops += txt(M, y + 14, PDFW.fit(`Feuille de présence — ${site || "Chantier"}`.toUpperCase(), titleW, 15, true), 15, true);
+      ops += txt(M, y + 32, PDFW.fit(`${dayLabel} · ${total} intervenant${total > 1 ? "s" : ""}`, titleW, 10), 10, false, .3);
+      let lx = W - M - logosW;
+      logoBoxes.forEach(b => {
+        images.push(b.im); const n = images.length - 1; imgs.push(n);
+        ops += `q ${b.w.toFixed(1)} 0 0 ${b.h.toFixed(1)} ${lx.toFixed(1)} ${(H - M - (LH + b.h) / 2 - 2).toFixed(1)} cm /Im${n} Do Q\n`;
+        lx += b.w + LGAP;
+      });
+      y += 44;
+      let x = M;
+      cols.forEach(([h, w]) => { ops += rect(x, y, w, HEAD, .9) + rect(x, y, w, HEAD) + txt(x + 4, y + 13, h.toUpperCase(), 7.5, true, .15); x += w; });
+      y += HEAD;
+      while (i < rows.length && y + ROW <= bottom) {
+        const r = rows[i], pp = byId[r.personKey] || {};
+        const vals = [String(i + 1), r.nom, r.prenom, r.societe, hhmm(r.ta), null, r.td ? hhmm(r.td) : "—", null, r.td ? dur(r.td - r.ta) : "", pp.accueil ? "Fait le " + new Date(pp.accueil).toLocaleDateString("fr-FR") : "Non fait"];
+        x = M;
+        cols.forEach(([, w], c) => {
+          ops += rect(x, y, w, ROW);
+          if (c === 5 || c === 7) {
+            const im = sigs[i][c === 5 ? 0 : 1];
+            if (im) { const bw = w - 8, bh = ROW - 6, k = Math.min(bw / im.w, bh / im.h), iw = im.w * k, ih = im.h * k;
+              images.push(im); const n = images.length - 1; imgs.push(n);
+              ops += `q ${iw.toFixed(1)} 0 0 ${ih.toFixed(1)} ${(x + 4 + (bw - iw) / 2).toFixed(1)} ${(H - y - 3 - (bh + ih) / 2).toFixed(1)} cm /Im${n} Do Q\n`; }
+            else ops += txt(x + 4, y + 19, c === 7 && !r.td ? "" : "Non signé", 8, false, .45);
+          } else {
+            const bold = c === 1, warn = c === 9 && !pp.accueil;
+            ops += txt(x + 4, y + 19, PDFW.fit(vals[c], w - 8, 9, bold), 9, bold, warn ? .1 : 0) ;
+          }
+          x += w;
+        });
+        y += ROW; i++;
+      }
+      pageBuf.push({ ops, imgs });
+    } while (i < rows.length);
+    const n = pageBuf.length;
+    pageBuf.forEach((pg, k) => { pg.ops += txt(M, H - M + 8, `Exporté le ${exported} · Page ${k + 1} / ${n}`, 7.5, false, .45); pages.push(pg); });
+    return PDFW.pack(pages, images, W, H);
+  }
+  $("expSheet").addEventListener("click", async () => {
+    const rows = [...S.viewRows].sort((a,b) => a.ta - b.ta);
+    if (!rows.length) { toast("Aucun pointage ce jour-là."); return; }
+    const b = $("expSheet"); b.disabled = true;
+    try {
+      let bytes;
+      try { bytes = await buildDayPdf({ site: S.site, dayLabel: longDate(fromKey(S.view)).replace(/^./, c => c.toUpperCase()), rows, byId: S.byId, logos: S.logos }); }
+      catch (err) { console.error(err); toast("Création du PDF impossible."); return; }
+      await save(`presence_${safeName()}_${S.view}.pdf`, bytes);
+    } finally { b.disabled = false; }
+  });
+  async function fetchMonths(months) {
+    const all = [];
+    for (const m of months) {
+      const snap = await S.db.collection("pointages").where("date",">=",m+"-01").where("date","<=",m+"-31").get();
+      snap.docs.forEach(d => { const r = d.data(); if (r.date && r.date.slice(0,7) === m) all.push(r); });
+    }
+    return all.sort((a,b) => a.ta - b.ta);
+  }
+  // ---------- Générateur .xlsx autonome (zip sans compression, signatures en images)
+  const XLSXW = (() => {
+    const enc = new TextEncoder();
+    const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+    const crc32 = b => { let c = 0xFFFFFFFF; for (let i = 0; i < b.length; i++) c = CRC[(c ^ b[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+    function zip(files) {
+      const parts = [], central = []; let off = 0;
+      const d = new Date(), dt = ((d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1)) & 0xFFFF,
+        dd = (((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate()) & 0xFFFF;
+      for (const f of files) {
+        const name = enc.encode(f.name), data = typeof f.data === "string" ? enc.encode(f.data) : f.data, crc = crc32(data);
+        const h = new DataView(new ArrayBuffer(30));
+        h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(8, 0, true);
+        h.setUint16(10, dt, true); h.setUint16(12, dd, true); h.setUint32(14, crc, true);
+        h.setUint32(18, data.length, true); h.setUint32(22, data.length, true); h.setUint16(26, name.length, true); h.setUint16(28, 0, true);
+        parts.push(new Uint8Array(h.buffer), name, data);
+        const c = new DataView(new ArrayBuffer(46));
+        c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true); c.setUint16(10, 0, true);
+        c.setUint16(12, dt, true); c.setUint16(14, dd, true); c.setUint32(16, crc, true); c.setUint32(20, data.length, true); c.setUint32(24, data.length, true);
+        c.setUint16(28, name.length, true); c.setUint32(42, off, true);
+        central.push(new Uint8Array(c.buffer), name);
+        off += 30 + name.length + data.length;
+      }
+      const csize = central.reduce((a, b) => a + b.length, 0);
+      const e = new DataView(new ArrayBuffer(22));
+      e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true);
+      e.setUint32(12, csize, true); e.setUint32(16, off, true);
+      const all = [...parts, ...central, new Uint8Array(e.buffer)], out = new Uint8Array(all.reduce((a, b) => a + b.length, 0));
+      let p = 0; for (const a of all) { out.set(a, p); p += a.length; }
+      return out;
+    }
+    const x = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "");
+    const colL = i => { let s = ""; i++; while (i) { const m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); } return s; };
+    const serial = d => (Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) - Date.UTC(1899, 11, 30)) / 86400000;
+    function cell(ref, v, s) {
+      if (v == null || v === "") return s ? `<c r="${ref}" s="${s}"/>` : "";
+      if (v instanceof Date) return `<c r="${ref}" s="${s}"><v>${serial(v)}</v></c>`;
+      if (typeof v === "number") return `<c r="${ref}" s="${s}"><v>${v}</v></c>`;
+      return `<c r="${ref}" s="${s}" t="inlineStr"><is><t xml:space="preserve">${x(v)}</t></is></c>`;
+    }
+    // rows: [{cells:[[value, styleId], ...], ht}]
+    function sheetXml({ rows, cols, freezeRow, filter, drawing, merges, selected, grid = true, fitHeight = 0, scale = 0, breakAfter = 0 }) {
+      const sd = rows.map((r, i) => (r.cells.length || r.ht) ? `<row r="${i + 1}"${r.ht ? ` ht="${r.ht}" customHeight="1"` : ""}>${r.cells.map((c, j) => cell(colL(j) + (i + 1), c[0], c[1])).join("")}</row>` : "").join("");
+      return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+<sheetPr>${scale ? "" : `<pageSetUpPr fitToPage="1"/>`}</sheetPr>
+<sheetViews><sheetView workbookViewId="0"${grid ? "" : ` showGridLines="0"`}${selected ? ` tabSelected="1"` : ""}>${freezeRow ? `<pane ySplit="${freezeRow}" topLeftCell="A${freezeRow + 1}" activePane="bottomLeft" state="frozen"/>` : ""}</sheetView></sheetViews>
+<sheetFormatPr defaultRowHeight="15"/>
+<cols>${cols.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join("")}</cols>
+<sheetData>${sd}</sheetData>
+${filter ? `<autoFilter ref="${filter}"/>` : ""}
+${merges && merges.length ? `<mergeCells count="${merges.length}">${merges.map(m => `<mergeCell ref="${m}"/>`).join("")}</mergeCells>` : ""}
+<pageMargins left="0.4" right="0.4" top="0.5" bottom="0.5" header="0.3" footer="0.3"/>
+<pageSetup paperSize="9" orientation="landscape"${scale ? ` scale="${scale}"` : ` fitToWidth="1" fitToHeight="${fitHeight}"`}/>
+${breakAfter ? `<rowBreaks count="1" manualBreakCount="1"><brk id="${breakAfter}" max="16383" man="1"/></rowBreaks>` : ""}
+${drawing ? `<drawing r:id="rId1"/>` : ""}
+</worksheet>`;
+    }
+    // Palette : ardoise #23405E, vert #1E8A4C, orange #E07A12, encre #1B232C, gris #5D6873
+    const STYLES = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<numFmts count="4"><numFmt numFmtId="164" formatCode="dd/mm/yyyy"/><numFmt numFmtId="165" formatCode="0.00"/><numFmt numFmtId="166" formatCode="0.0"/><numFmt numFmtId="167" formatCode="0.0&quot; h&quot;"/></numFmts>
+<fonts count="11"><font><sz val="10"/><name val="Arial"/></font><font><b/><sz val="10"/><color rgb="FFFFFFFF"/><name val="Arial"/></font><font><b/><sz val="14"/><color rgb="FF1B232C"/><name val="Arial"/></font><font><i/><sz val="10"/><color rgb="FF5D6873"/><name val="Arial"/></font><font><b/><sz val="9"/><color rgb="FFFFFFFF"/><name val="Arial"/></font><font><b/><sz val="22"/><color rgb="FF23405E"/><name val="Arial"/></font><font><sz val="9"/><color rgb="FF5D6873"/><name val="Arial"/></font><font><b/><sz val="20"/><color rgb="FF1B232C"/><name val="Arial"/></font><font><b/><sz val="12"/><color rgb="FF23405E"/><name val="Arial"/></font><font><b/><sz val="22"/><color rgb="FFA5520C"/><name val="Arial"/></font><font><b/><sz val="10"/><color rgb="FF1B232C"/><name val="Arial"/></font></fonts>
+<fills count="7"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF23405E"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFCE8D2"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF1F4F7"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFE07A12"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFE3E8EE"/><bgColor indexed="64"/></patternFill></fill></fills>
+<borders count="4"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"><color rgb="FFB8C0C8"/></left><right style="thin"><color rgb="FFB8C0C8"/></right><top style="thin"><color rgb="FFB8C0C8"/></top><bottom style="thin"><color rgb="FFB8C0C8"/></bottom><diagonal/></border><border><left style="thick"><color rgb="FFFFFFFF"/></left><right style="thick"><color rgb="FFFFFFFF"/></right><top/><bottom/><diagonal/></border><border><left/><right/><top/><bottom style="medium"><color rgb="FF23405E"/></bottom><diagonal/></border></borders>
+<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+<cellXfs count="26">
+<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
+<xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
+<xf numFmtId="164" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf>
+<xf numFmtId="165" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment vertical="center"/></xf>
+<xf numFmtId="0" fontId="3" fillId="0" borderId="0" xfId="0" applyFont="1"/>
+<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+<xf numFmtId="0" fontId="0" fillId="3" borderId="1" xfId="0" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+<xf numFmtId="0" fontId="4" fillId="2" borderId="2" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="center" indent="1"/></xf>
+<xf numFmtId="3" fontId="5" fillId="4" borderId="2" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="center" indent="1"/></xf>
+<xf numFmtId="166" fontId="5" fillId="4" borderId="2" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="center" indent="1"/></xf>
+<xf numFmtId="9" fontId="5" fillId="4" borderId="2" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="center" indent="1"/></xf>
+<xf numFmtId="167" fontId="5" fillId="4" borderId="2" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="center" indent="1"/></xf>
+<xf numFmtId="0" fontId="6" fillId="4" borderId="2" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="top" indent="1" wrapText="1"/></xf>
+<xf numFmtId="0" fontId="4" fillId="5" borderId="2" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="center" indent="1"/></xf>
+<xf numFmtId="3" fontId="9" fillId="3" borderId="2" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="center" indent="1"/></xf>
+<xf numFmtId="9" fontId="9" fillId="3" borderId="2" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="center" indent="1"/></xf>
+<xf numFmtId="0" fontId="6" fillId="3" borderId="2" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="top" indent="1" wrapText="1"/></xf>
+<xf numFmtId="0" fontId="7" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment vertical="center"/></xf>
+<xf numFmtId="0" fontId="8" fillId="0" borderId="3" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment vertical="bottom"/></xf>
+<xf numFmtId="0" fontId="10" fillId="6" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="center" indent="1"/></xf>
+<xf numFmtId="0" fontId="10" fillId="6" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+<xf numFmtId="166" fontId="10" fillId="6" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+<xf numFmtId="166" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment vertical="center" indent="1"/></xf>
+</cellXfs>
+<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
+</styleSheet>`;
+    // Styles : 1 en-tête tableau · 2 date · 3 texte · 4 décimal · 5 titre · 6 sous-titre · 7 centré · 8 alerte
+    // 9-14 tuile KPI (libellé, entier, décimal, %, heures, légende) · 15-18 tuile alerte (libellé, entier, %, légende)
+    // 19 titre tableau de bord · 20 titre de section · 21-23 ligne total (texte, entier, décimal) · 24 décimal 0.0 · 25 texte simple
+    const ST = { head: 1, date: 2, text: 3, dec2: 4, title: 5, sub: 6, num: 7, warn: 8,
+      tLab: 9, tInt: 10, tDec: 11, tPct: 12, tH: 13, tSub: 14, wLab: 15, wInt: 16, wPct: 17, wSub: 18,
+      dTitle: 19, sect: 20, totT: 21, totN: 22, totD: 23, dec1: 24, plain: 25 };
+    function b64bytes(dataUrl) {
+      const b = atob(dataUrl.split(",")[1] || ""); const u = new Uint8Array(b.length);
+      for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u;
+    }
+    const pngSize = u => (u.length > 24 && u[1] === 0x50) ? [((u[16] << 24) | (u[17] << 16) | (u[18] << 8) | u[19]) >>> 0, ((u[20] << 24) | (u[21] << 16) | (u[22] << 8) | u[23]) >>> 0] : [480, 170];
+    const EMU = 9525;
+    const colPx = w => Math.round(w * 7 + 5);
+
+    // ---- Graphiques (DrawingML) : barres horizontales ou colonnes, une série
+    const txPr = (sz, color, b, rot) => `<c:txPr><a:bodyPr${rot ? ` rot="${rot}" vert="horz"` : ""}/><a:lstStyle/><a:p><a:pPr><a:defRPr sz="${sz}"${b ? ` b="1"` : ""}><a:solidFill><a:srgbClr val="${color}"/></a:solidFill><a:latin typeface="Arial"/></a:defRPr></a:pPr><a:endParaRPr lang="fr-FR"/></a:p></c:txPr>`;
+    function chartXml({ dir, title, catRef, valRef, cats, vals, color, fmt, serName }) {
+      const strCache = `<c:strCache><c:ptCount val="${cats.length}"/>${cats.map((c, i) => `<c:pt idx="${i}"><c:v>${x(c)}</c:v></c:pt>`).join("")}</c:strCache>`;
+      const numCache = `<c:numCache><c:formatCode>General</c:formatCode><c:ptCount val="${vals.length}"/>${vals.map((v, i) => `<c:pt idx="${i}"><c:v>${v}</c:v></c:pt>`).join("")}</c:numCache>`;
+      const horiz = dir === "bar";
+      return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<c:chartSpace xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><c:roundedCorners val="0"/><c:chart><c:title><c:tx><c:rich><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr sz="1200" b="1"/></a:pPr><a:r><a:rPr lang="fr-FR" sz="1200" b="1"><a:solidFill><a:srgbClr val="1B232C"/></a:solidFill><a:latin typeface="Arial"/></a:rPr><a:t>${x(title)}</a:t></a:r></a:p></c:rich></c:tx><c:overlay val="0"/></c:title><c:autoTitleDeleted val="0"/><c:plotArea><c:layout/><c:barChart><c:barDir val="${dir}"/><c:grouping val="clustered"/><c:varyColors val="0"/><c:ser><c:idx val="0"/><c:order val="0"/><c:tx><c:v>${x(serName)}</c:v></c:tx><c:spPr><a:solidFill><a:srgbClr val="${color}"/></a:solidFill></c:spPr><c:invertIfNegative val="0"/><c:dLbls><c:numFmt formatCode="${x(fmt)}" sourceLinked="0"/><c:spPr><a:noFill/><a:ln><a:noFill/></a:ln></c:spPr>${txPr(900, "1B232C", true)}<c:dLblPos val="outEnd"/><c:showLegendKey val="0"/><c:showVal val="1"/><c:showCatName val="0"/><c:showSerName val="0"/><c:showPercent val="0"/><c:showBubbleSize val="0"/></c:dLbls><c:cat><c:strRef><c:f>${x(catRef)}</c:f>${strCache}</c:strRef></c:cat><c:val><c:numRef><c:f>${x(valRef)}</c:f>${numCache}</c:numRef></c:val></c:ser><c:gapWidth val="${horiz ? 50 : 40}"/><c:axId val="5001"/><c:axId val="5002"/></c:barChart><c:catAx><c:axId val="5001"/><c:scaling><c:orientation val="${horiz ? "maxMin" : "minMax"}"/></c:scaling><c:delete val="0"/><c:axPos val="${horiz ? "l" : "b"}"/><c:numFmt formatCode="General" sourceLinked="0"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/><c:spPr><a:ln w="9525"><a:solidFill><a:srgbClr val="B8C0C8"/></a:solidFill></a:ln></c:spPr>${txPr(900, "3A4550", false, horiz ? 0 : -2700000)}<c:crossAx val="5002"/><c:crosses val="autoZero"/><c:auto val="1"/><c:lblAlgn val="ctr"/><c:lblOffset val="100"/><c:noMultiLvlLbl val="0"/></c:catAx><c:valAx><c:axId val="5002"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="${horiz ? "b" : "l"}"/><c:majorGridlines><c:spPr><a:ln w="6350"><a:solidFill><a:srgbClr val="E3E7EB"/></a:solidFill></a:ln></c:spPr></c:majorGridlines><c:numFmt formatCode="0" sourceLinked="0"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/><c:spPr><a:ln><a:noFill/></a:ln></c:spPr>${txPr(900, "5D6873", false)}<c:crossAx val="5001"/><c:crosses val="${horiz ? "max" : "autoZero"}"/><c:crossBetween val="between"/></c:valAx><c:spPr><a:noFill/><a:ln><a:noFill/></a:ln></c:spPr></c:plotArea><c:plotVisOnly val="1"/><c:dispBlanksAs val="gap"/></c:chart><c:spPr><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill><a:ln w="9525"><a:solidFill><a:srgbClr val="D5DAE0"/></a:solidFill></a:ln></c:spPr><c:txPr><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr><a:latin typeface="Arial"/></a:defRPr></a:pPr><a:endParaRPr lang="fr-FR"/></a:p></c:txPr></c:chartSpace>`;
+    }
+
+    // ---- Dessin d'une feuille : images (logos, signatures) et graphiques
+    function drawingXml(items) {
+      let id = 2;
+      const pic = (p, anchorOpen, anchorClose) => `${anchorOpen}<xdr:pic><xdr:nvPicPr><xdr:cNvPr id="${id++}" name="${x(p.name)}"/><xdr:cNvPicPr><a:picLocks noChangeAspect="1"/></xdr:cNvPicPr></xdr:nvPicPr><xdr:blipFill><a:blip r:embed="${p.rid}"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill><xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${p.cx}" cy="${p.cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/>${anchorClose}`;
+      const body = items.map(it => {
+        if (it.kind === "abs") return pic(it, `<xdr:absoluteAnchor><xdr:pos x="${it.x}" y="${it.y}"/><xdr:ext cx="${it.cx}" cy="${it.cy}"/>`, `</xdr:absoluteAnchor>`);
+        if (it.kind === "cell") return pic(it, `<xdr:oneCellAnchor><xdr:from><xdr:col>${it.col}</xdr:col><xdr:colOff>${it.colOff || 0}</xdr:colOff><xdr:row>${it.row}</xdr:row><xdr:rowOff>${it.rowOff || 0}</xdr:rowOff></xdr:from><xdr:ext cx="${it.cx}" cy="${it.cy}"/>`, `</xdr:oneCellAnchor>`);
+        // graphique
+        return `<xdr:twoCellAnchor editAs="oneCell"><xdr:from><xdr:col>${it.from[0]}</xdr:col><xdr:colOff>${it.from[1]}</xdr:colOff><xdr:row>${it.from[2]}</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from><xdr:to><xdr:col>${it.to[0]}</xdr:col><xdr:colOff>${it.to[1]}</xdr:colOff><xdr:row>${it.to[2]}</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to><xdr:graphicFrame macro=""><xdr:nvGraphicFramePr><xdr:cNvPr id="${id++}" name="${x(it.name)}"/><xdr:cNvGraphicFramePr/></xdr:nvGraphicFramePr><xdr:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/></xdr:xfrm><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/chart"><c:chart xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" r:id="${it.rid}"/></a:graphicData></a:graphic></xdr:graphicFrame><xdr:clientData/></xdr:twoCellAnchor>`;
+      }).join("");
+      return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">${body}</xdr:wsDr>`;
+    }
+
+    /** rows: pointages triés. logos: [dataURL PNG] (entreprise, client). Renvoie un Uint8Array .xlsx */
+    function build({ site, periodLabel, rows, helpers, month, logos = [] }) {
+      const { fromKey, hhmm, byId = {}, dayKey } = helpers;
+      const media = [];        // PNG bytes, globaux au classeur
+      const charts = [];       // XML des graphiques
+      const addMedia = bytes => { media.push(bytes); return media.length; };
+      const logoMedia = logos.filter(Boolean).map(src => { const b = b64bytes(src); const [w, h] = pngSize(b); return { n: addMedia(b), w, h }; });
+      // Place les logos alignés à droite d'une zone (en px), hauteur max boxH
+      function logoItems(rightPx, topPx, boxH, boxW) {
+        const sized = logoMedia.map(l => { const k = Math.min(boxH / l.h, boxW / l.w); return { ...l, pw: Math.round(l.w * k), ph: Math.round(l.h * k) }; });
+        let xPx = rightPx - sized.reduce((a, b) => a + b.pw, 0) - Math.max(0, sized.length - 1) * 14;
+        return sized.map((l, i) => { const it = { kind: "abs", media: l.n, name: i === 0 && logoMedia.length > 1 ? "Logo entreprise" : "Logo", x: xPx * EMU, y: (topPx + Math.round((boxH - l.ph) / 2)) * EMU, cx: l.pw * EMU, cy: l.ph * EMU }; xPx += l.pw + 14; return it; });
+      }
+      const now = new Date(), todayKey = dayKey(now);
+      const exported = now.toLocaleString("fr-FR");
+
+      // ================= Historique =================
+      const hDraw = [];
+      const head = ["Date", "Jour", "Nom", "Prénom", "Société", "Arrivée", "Signature arrivée", "Départ", "Signature départ", "Durée (h)", "Accueil sécurité", "Carte BTP vérifiée"];
+      const hCols = [11, 10, 18, 15, 20, 9, 18, 11, 18, 10, 14, 12];
+      const hRows = [
+        { cells: [[`Registre de présence — ${site || "Chantier"}`, ST.title]], ht: logoMedia.length ? 44 : 24 },
+        { cells: [[`${periodLabel} · ${rows.length} pointage(s) · exporté le ${exported}`, ST.sub]] },
+        { cells: [] },
+        { cells: head.map(h => [h, ST.head]), ht: 28 }
+      ];
+      rows.forEach((r, i) => {
+        const rowIdx = 4 + i; // 0-based
+        const d = fromKey(r.date), p = byId[r.personKey] || {};
+        hRows.push({ ht: 36, cells: [
+          [d, ST.date], [d.toLocaleDateString("fr-FR", { weekday: "long" }), ST.text], [r.nom, ST.text], [r.prenom, ST.text], [r.societe, ST.text],
+          [hhmm(r.ta), ST.num], [r.sigIn ? "" : "Non signé", ST.num],
+          r.td ? [hhmm(r.td), ST.num] : ["Non pointé", ST.warn], [r.td && !r.sigOut ? "Non signé" : "", ST.num],
+          [r.td ? Math.round((r.td - r.ta) / 36000) / 100 : "", ST.dec2],
+          p.accueil ? [new Date(p.accueil), ST.date] : ["Non fait", ST.warn],
+          p.carte ? ["Oui", ST.num] : ["Non", ST.warn]
+        ] });
+        [[r.sigIn, 6], [r.sigOut, 8]].forEach(([src, col]) => {
+          if (!src || !/^data:image\/png;base64,/.test(src)) return;
+          const bytes = b64bytes(src), [w, h] = pngSize(bytes);
+          const k = Math.min(118 / w, 42 / h);
+          hDraw.push({ kind: "cell", media: addMedia(bytes), name: "Signature", col, row: rowIdx, colOff: 4 * EMU, rowOff: 3 * EMU, cx: Math.round(w * k * EMU), cy: Math.round(h * k * EMU) });
+        });
+      });
+      if (logoMedia.length) hDraw.push(...logoItems(hCols.reduce((a, w) => a + colPx(w), 0) - 6, 4, 50, 150));
+      const hLast = hRows.length;
+
+      // ================= Synthèse sociétés =================
+      // Présence d'une société un jour donné = de sa 1re arrivée à son dernier départ (pas la somme des heures de ses intervenants)
+      const agg = {};
+      rows.forEach(r => { const k = r.date + "|" + r.societe; const a = agg[k] || (agg[k] = { date: r.date, soc: r.societe, people: new Set(), minTa: Infinity, maxTd: null, open: 0 });
+        a.people.add(r.personKey); a.minTa = Math.min(a.minTa, r.ta);
+        if (r.td) a.maxTd = Math.max(a.maxTd || 0, r.td); else a.open++; });
+      Object.values(agg).forEach(a => { a.h = a.maxTd && a.maxTd > a.minTa ? (a.maxTd - a.minTa) / 3600000 : null; });
+      const groups = Object.values(agg).sort((a, b) => a.date.localeCompare(b.date) || a.soc.localeCompare(b.soc));
+      const syn = [{ cells: ["Date", "Société", "Personnes", "1re arrivée", "Dernier départ", "Heures de présence", "Départs non pointés"].map(h => [h, ST.head]), ht: 28 }];
+      groups.forEach(a => syn.push({ cells: [[fromKey(a.date), ST.date], [a.soc, ST.text], [a.people.size, ST.num], [hhmm(a.minTa), ST.num],
+        a.maxTd ? [hhmm(a.maxTd), ST.num] : ["—", ST.warn], a.h != null ? [Math.round(a.h * 100) / 100, ST.dec2] : ["", ST.num], [a.open, a.open ? ST.warn : ST.num]] }));
+      const dayEnd = syn.length;
+
+      // ================= Indicateurs =================
+      const persons = new Set(rows.map(r => r.personKey));
+      const socs = {};
+      const S0 = s => socs[s] || (socs[s] = { soc: s, people: new Set(), n: 0, h: 0, days: new Set(), acc: 0, sansAcc: new Set(), sansCarte: new Set() });
+      const days = {};
+      let openPast = 0, openToday = 0;
+      rows.forEach(r => {
+        const s = S0(r.societe), p = byId[r.personKey] || {};
+        const d = days[r.date] || (days[r.date] = { date: r.date, people: new Set(), socs: new Set(), minTa: Infinity, maxTd: null });
+        s.people.add(r.personKey); s.n++; s.days.add(r.date); d.people.add(r.personKey); d.socs.add(r.societe);
+        d.minTa = Math.min(d.minTa, r.ta);
+        if (r.td) d.maxTd = Math.max(d.maxTd || 0, r.td);
+        else if (r.date < todayKey) openPast++; else openToday++;
+        if (!p.accueil) s.sansAcc.add(r.personKey);
+        if (!p.carte) s.sansCarte.add(r.personKey);
+      });
+      Object.values(days).forEach(d => { d.h = d.maxTd && d.maxTd > d.minTa ? (d.maxTd - d.minTa) / 3600000 : 0; });
+      groups.forEach(a => { if (a.h != null) S0(a.soc).h += a.h; });
+      const siteHours = Object.values(days).reduce((t, d) => t + d.h, 0);
+      const closedGroups = groups.filter(a => a.h != null);
+      const avgSocDay = closedGroups.length ? closedGroups.reduce((t, a) => t + a.h, 0) / closedGroups.length : 0;
+      let accMonth = 0;
+      Object.values(byId).forEach(p => { if (p.accueil && month && dayKey(new Date(p.accueil)).slice(0, 7) === month) { accMonth++; S0(p.societe).acc++; } });
+      const nPers = persons.size;
+      const withAcc = [...persons].filter(k => (byId[k] || {}).accueil).length;
+      const withCard = [...persons].filter(k => (byId[k] || {}).carte).length;
+      const dayList = Object.values(days).sort((a, b) => a.date.localeCompare(b.date));
+      const avgEff = dayList.length ? dayList.reduce((a, d) => a + d.people.size, 0) / dayList.length : 0;
+      const peak = dayList.reduce((m, d) => d.people.size > (m ? m.people.size : -1) ? d : m, null);
+      const short = k => fromKey(k).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" });
+      const socList = Object.values(socs).filter(s => s.n > 0).sort((a, b) => b.h - a.h || a.soc.localeCompare(b.soc));
+      const r1 = v => Math.round(v * 10) / 10;
+
+      // ================= Tableau de bord =================
+      // Colonnes : A marge, B→M douze colonnes égales (4 tuiles de 3 colonnes)
+      const dCols = [2, ...Array(12).fill(11.5)];
+      const D = [], merges = [];
+      const put = (r, c, v, st) => { while (D.length <= r) D.push({ cells: [] }); const row = D[r]; while (row.cells.length <= c) row.cells.push(["", 0]); row.cells[c] = [v, st]; };
+      const ht = (r, h) => { while (D.length <= r) D.push({ cells: [] }); D[r].ht = h; };
+      const span = (r, c1, c2, v, st) => { for (let c = c1; c <= c2; c++) put(r, c, c === c1 ? v : "", st); if (c2 > c1) merges.push(`${colL(c1)}${r + 1}:${colL(c2)}${r + 1}`); };
+      // En-tête
+      span(0, 1, logoMedia.length ? 8 : 12, `Tableau de bord — ${site || "Chantier"}`, ST.dTitle); ht(0, 48);
+      span(1, 1, 12, `${periodLabel} · ${rows.length} pointage(s) · exporté le ${exported}`, ST.sub);
+      ht(2, 10);
+      span(3, 1, 12, "Indicateurs clés", ST.sect); ht(3, 22);
+      ht(4, 8);
+      const tiles = [
+        { lab: "Heures de présence chantier", v: r1(siteHours), st: ST.tH, sub: dayList.length ? `soit ${r1(siteHours / dayList.length).toString().replace(".", ",")} h par jour en moyenne` : "" },
+        { lab: "Intervenants", v: nPers, st: ST.tInt, sub: `${socList.length} entreprise(s)` },
+        { lab: "Jours d'activité", v: dayList.length, st: ST.tInt, sub: dayList.length ? `du ${short(dayList[0].date)} au ${short(dayList[dayList.length - 1].date)}` : "" },
+        { lab: "Effectif moyen / jour", v: r1(avgEff), st: ST.tDec, sub: peak ? `pic : ${peak.people.size} le ${short(peak.date)}` : "" },
+        { lab: "Accueils sécurité du mois", v: accMonth, st: ST.tInt, sub: `${nPers ? Math.round(withAcc / nPers * 100) : 0} % des intervenants accueillis`, warn: withAcc < nPers },
+        { lab: "Cartes BTP vérifiées", v: nPers ? withCard / nPers : 0, st: ST.tPct, sub: `${withCard} sur ${nPers} intervenant(s)`, warn: withCard < nPers },
+        { lab: "Départs non pointés", v: openPast, st: ST.tInt, sub: openToday ? `+ ${openToday} encore sur site aujourd'hui` : (openPast ? "à régulariser dans le journal" : "aucun oubli"), warn: openPast > 0 },
+        { lab: "Présence moyenne d'une société", v: r1(avgSocDay), st: ST.tH, sub: `par jour · ${groups.length} journée(s)-société` }
+      ];
+      const warnOf = st => st === ST.tPct ? ST.wPct : ST.wInt;
+      tiles.forEach((t, i) => {
+        const base = i < 4 ? 5 : 9, c1 = 1 + (i % 4) * 3, c2 = c1 + 2;
+        span(base, c1, c2, t.lab.toUpperCase(), t.warn ? ST.wLab : ST.tLab);
+        span(base + 1, c1, c2, t.v, t.warn ? warnOf(t.st) : t.st);
+        span(base + 2, c1, c2, t.sub, t.warn ? ST.wSub : ST.tSub);
+      });
+      [5, 9].forEach(b => { ht(b, 20); ht(b + 1, 38); ht(b + 2, 18); });
+      ht(8, 10);
+      ht(12, 14);
+      span(13, 1, 12, "Graphiques", ST.sect); ht(13, 22);
+      const chartTop = 14, chartRows = 18;
+      for (let r = chartTop; r < chartTop + chartRows; r++) ht(r, 18);
+      // Tableau par entreprise
+      let r = chartTop + chartRows + 1;
+      span(r, 1, 12, "Détail par entreprise", ST.sect); ht(r, 22); r++;
+      const eHead = r;
+      span(r, 1, 3, "Entreprise", ST.head);
+      ["Intervenants", "Jours de présence", "Heures de présence", "Accueils du mois", "Sans accueil", "Carte BTP non vérifiée"].forEach((h, i) => put(r, 4 + i, h, ST.head));
+      ht(r, 30); r++;
+      const eFirst = r;
+      socList.forEach(s => {
+        span(r, 1, 3, s.soc, ST.plain);
+        put(r, 4, s.people.size, ST.num); put(r, 5, s.days.size, ST.num); put(r, 6, r1(s.h), ST.dec1); put(r, 7, s.acc, ST.num);
+        put(r, 8, s.sansAcc.size, s.sansAcc.size ? ST.warn : ST.num); put(r, 9, s.sansCarte.size, s.sansCarte.size ? ST.warn : ST.num);
+        ht(r, 18); r++;
+      });
+      const eLast = r - 1;
+      span(r, 1, 3, "CHANTIER (toutes sociétés)", ST.totT);
+      put(r, 4, nPers, ST.totN); put(r, 5, dayList.length, ST.totN); put(r, 6, r1(siteHours), ST.totD); put(r, 7, accMonth, ST.totN);
+      put(r, 8, nPers - withAcc, ST.totN); put(r, 9, nPers - withCard, ST.totN); ht(r, 20); r += 2;
+      // Tableau par jour
+      span(r, 1, 12, "Présence par jour", ST.sect); ht(r, 22); r++;
+      put(r, 1, "Jour", ST.head); put(r, 2, "Date", ST.head); put(r, 3, "Présents", ST.head); put(r, 4, "Entreprises", ST.head); put(r, 5, "1re arrivée", ST.head); put(r, 6, "Dernier départ", ST.head); put(r, 7, "Heures de présence", ST.head); ht(r, 30); r++;
+      const jFirst = r;
+      dayList.forEach(d => {
+        const dd = fromKey(d.date), wd = dd.toLocaleDateString("fr-FR", { weekday: "long" });
+        put(r, 1, wd.charAt(0).toUpperCase() + wd.slice(1), ST.plain); put(r, 2, short(d.date), ST.num);
+        put(r, 3, d.people.size, ST.num); put(r, 4, d.socs.size, ST.num); put(r, 5, hhmm(d.minTa), ST.num);
+        put(r, 6, d.maxTd ? hhmm(d.maxTd) : "—", d.maxTd ? ST.num : ST.warn); put(r, 7, r1(d.h), ST.dec1); ht(r, 18); r++;
+      });
+      const jLast = r - 1;
+      // Graphiques
+      const SN = "'Tableau de bord'";
+      const dDraw = [];
+      charts.push(chartXml({ dir: "bar", title: "Heures de présence par entreprise", serName: "Heures de présence",
+        catRef: `${SN}!$B$${eFirst + 1}:$B$${eLast + 1}`, valRef: `${SN}!$G$${eFirst + 1}:$G$${eLast + 1}`,
+        cats: socList.map(s => s.soc), vals: socList.map(s => r1(s.h)), color: "23405E", fmt: "0.0" }));
+      dDraw.push({ kind: "chart", rid: null, chart: charts.length, name: "Heures de présence par entreprise", from: [1, 0, chartTop], to: [7, -1, chartTop + chartRows] });
+      charts.push(chartXml({ dir: "col", title: "Effectif présent par jour", serName: "Présents",
+        catRef: `${SN}!$C$${jFirst + 1}:$C$${jLast + 1}`, valRef: `${SN}!$D$${jFirst + 1}:$D$${jLast + 1}`,
+        cats: dayList.map(d => short(d.date)), vals: dayList.map(d => d.people.size), color: "1E8A4C", fmt: "0" }));
+      dDraw.push({ kind: "chart", rid: null, chart: charts.length, name: "Effectif par jour", from: [7, 8 * EMU, chartTop], to: [13, 0, chartTop + chartRows] });
+      if (logoMedia.length) dDraw.push(...logoItems(dCols.reduce((a, w) => a + colPx(w), 0) - 4, 4, 54, 170));
+      // chart to-col "−1" → fin de la colonne G : on ancre à la colonne H sans décalage
+      dDraw.forEach(it => { if (it.kind === "chart" && it.to[1] < 0) it.to = [it.to[0], 0, it.to[2]]; });
+
+      // ================= Assemblage =================
+      const sheets = [
+        { name: "Tableau de bord", xml: sheetXml({ rows: D, cols: dCols, merges, selected: true, grid: false, drawing: dDraw.length > 0, scale: 76, breakAfter: chartTop + chartRows }), draw: dDraw },
+        { name: "Historique", xml: sheetXml({ rows: hRows, cols: hCols, freezeRow: 4, filter: `A4:L${Math.max(hLast, 4)}`, drawing: hDraw.length > 0, merges: ["A1:L1", "A2:L2"] }), draw: hDraw },
+        { name: "Synthèse sociétés", xml: sheetXml({ rows: syn, cols: [12, 24, 11, 12, 14, 17, 18], freezeRow: 1, filter: `A1:G${dayEnd}` }), draw: [] }
+      ];
+      const files = [], ct = [];
+      let drawN = 0;
+      sheets.forEach((sh, i) => {
+        files.push({ name: `xl/worksheets/sheet${i + 1}.xml`, data: sh.xml });
+        ct.push(`<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`);
+        if (!sh.draw.length) return;
+        drawN++;
+        const rels = [];
+        sh.draw.forEach(it => {
+          const rid = `rId${rels.length + 1}`; it.rid = rid;
+          if (it.kind === "chart") rels.push(`<Relationship Id="${rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart" Target="../charts/chart${it.chart}.xml"/>`);
+          else rels.push(`<Relationship Id="${rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/image${it.media}.png"/>`);
+        });
+        files.push({ name: `xl/worksheets/_rels/sheet${i + 1}.xml.rels`, data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing${drawN}.xml"/></Relationships>` });
+        files.push({ name: `xl/drawings/drawing${drawN}.xml`, data: drawingXml(sh.draw) });
+        files.push({ name: `xl/drawings/_rels/drawing${drawN}.xml.rels`, data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${rels.join("")}</Relationships>` });
+        ct.push(`<Override PartName="/xl/drawings/drawing${drawN}.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>`);
+      });
+      charts.forEach((c, i) => {
+        files.push({ name: `xl/charts/chart${i + 1}.xml`, data: c });
+        ct.push(`<Override PartName="/xl/charts/chart${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/>`);
+      });
+      media.forEach((m, i) => files.push({ name: `xl/media/image${i + 1}.png`, data: m }));
+      files.unshift(
+        { name: "[Content_Types].xml", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${ct.join("")}</Types>` },
+        { name: "_rels/.rels", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>` },
+        { name: "xl/workbook.xml", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><bookViews><workbookView activeTab="0"/></bookViews><sheets>${sheets.map((sh, i) => `<sheet name="${x(sh.name)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join("")}</sheets><definedNames><definedName name="_xlnm._FilterDatabase" localSheetId="1" hidden="1">Historique!$A$4:$L$${Math.max(hLast, 4)}</definedName><definedName name="_xlnm._FilterDatabase" localSheetId="2" hidden="1">'Synthèse sociétés'!$A$1:$G$${dayEnd}</definedName><definedName name="_xlnm.Print_Titles" localSheetId="1">Historique!$4:$4</definedName></definedNames></workbook>` },
+        { name: "xl/_rels/workbook.xml.rels", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join("")}<Relationship Id="rId${sheets.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>` },
+        { name: "xl/styles.xml", data: STYLES }
+      );
+      return zip(files);
+    }
+    return { build };
+  })();
+  const MOIS = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
+  async function exportExcel(months, label, periodLabel) {
+    const btns = [$("expMonth")];
+    btns.forEach(b => b.disabled = true);
+    try {
+      let rows;
+      try { rows = await fetchMonths(months); }
+      catch (err) { toast("Lecture du registre impossible (" + (err && err.code || "erreur") + "). Réessaie."); return; }
+      if (!rows.length) { toast("Aucun pointage sur cette période."); return; }
+      let bytes;
+      try { bytes = XLSXW.build({ site: S.site, periodLabel, rows, helpers: { fromKey, hhmm, byId: S.byId, dayKey }, month: months.length === 1 ? months[0] : null, logos: [S.logos.entreprise, S.logos.client] }); }
+      catch (err) { toast("Création du fichier Excel impossible."); console.error(err); return; }
+      await save(`presences_${safeName()}_${label}.xlsx`, bytes);
+    } finally { btns.forEach(b => b.disabled = false); }
+  }
+  $("expMonth").addEventListener("click", () => { const m = S.view.slice(0,7); exportExcel([m], m, `${MOIS[+m.slice(5)-1]} ${m.slice(0,4)}`.replace(/^./, c => c.toUpperCase())); });
+
+  // ---------- Navigation
+  $("btnIn").addEventListener("click", openIn);
+  $("btnOut").addEventListener("click", openOut);
+  document.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", () => b.closest("dialog").close()));
+  $("viewDate").addEventListener("change", e => { if (e.target.value) setView(e.target.value > S.today ? S.today : e.target.value); });
+  const shift = n => { const d = fromKey(S.view); d.setDate(d.getDate()+n); const k = dayKey(d); if (k <= S.today) setView(k); };
+  $("prev").addEventListener("click", () => shift(-1));
+  $("next").addEventListener("click", () => shift(1));
+  $("goToday").addEventListener("click", () => setView(S.today));
+  $("viewDate").max = S.today;
+
+  // ---------- Démarrage
+  tick(); setInterval(tick, 15000);
+  $("viewDate").value = S.view; paintSite(); render();
+  // ---------- Stockage local (IndexedDB) — même interface que le registre en ligne
+  const LocalDB = (() => {
+    const DBN = "pointage-chantier", ST = "docs";
+    let idb = null; const mem = new Map(), listeners = new Set();
+    const E = code => Object.assign(new Error(code), { code });
+    const openIdb = () => new Promise((res, rej) => { const r = indexedDB.open(DBN, 1);
+      r.onupgradeneeded = () => r.result.createObjectStore(ST); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+    async function init() {
+      idb = await openIdb();
+      await new Promise((res, rej) => { const rq = idb.transaction(ST).objectStore(ST).openCursor();
+        rq.onsuccess = () => { const c = rq.result; if (c) { mem.set(c.key, c.value); c.continue(); } else res(); }; rq.onerror = () => rej(rq.error); });
+    }
+    const tx = fn => new Promise((res, rej) => { const t = idb.transaction(ST, "readwrite"); fn(t.objectStore(ST));
+      t.oncomplete = () => res(); const fail = () => { const e = t.error; rej(e && e.name === "QuotaExceededError" ? E("quota_exceeded") : E("unavailable")); };
+      t.onerror = fail; t.onabort = fail; });
+    const notify = () => setTimeout(() => listeners.forEach(f => f()), 0);
+    const snap = path => { const v = mem.get(path); return { id: path.split("/").pop(), exists: v !== undefined, data: () => v, metadata: { fromCache: false, hasPendingWrites: false } }; };
+    const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    function doc(path) {
+      return { id: path.split("/").pop(), path,
+        async get() { return snap(path); },
+        async set(d) { const v = structuredClone(d); await tx(st => st.put(v, path)); mem.set(path, v); notify(); },
+        async update(d) { if (!mem.has(path)) throw E("invalid_argument"); const v = { ...mem.get(path), ...structuredClone(d) }; await tx(st => st.put(v, path)); mem.set(path, v); notify(); },
+        async delete() { await tx(st => st.delete(path)); mem.delete(path); notify(); },
+        onSnapshot(next) { const f = () => next(snap(path)); listeners.add(f); setTimeout(f, 0); return () => listeners.delete(f); } };
+    }
+    const OPS = { "==": (a, b) => a === b, "!=": (a, b) => a !== b, ">=": (a, b) => a >= b, "<=": (a, b) => a <= b, ">": (a, b) => a > b, "<": (a, b) => a < b };
+    function collection(c, filters = []) {
+      const qs = () => { const docs = [];
+        for (const [k, v] of mem) { if (k.slice(0, k.lastIndexOf("/")) !== c) continue;
+          if (filters.every(([f, o, x]) => (OPS[o] || (() => true))(v[f], x))) docs.push(snap(k)); }
+        docs.sort((a, b) => a.id < b.id ? -1 : 1);
+        return { docs, size: docs.length, empty: !docs.length, docChanges: () => [], metadata: { fromCache: false, hasPendingWrites: false } }; };
+      return { path: c,
+        where: (f, o, v) => collection(c, [...filters, [f, o, v]]),
+        async get() { return qs(); },
+        onSnapshot(next) { const f = () => next(qs()); listeners.add(f); setTimeout(f, 0); return () => listeners.delete(f); },
+        doc: id => doc(c + "/" + (id || newId())),
+        async add(d) { const r = doc(c + "/" + newId()); await r.set(d); return r; } };
+    }
+    async function restore(docs) {
+      await tx(st => { st.clear(); for (const [k, v] of Object.entries(docs)) st.put(v, k); });
+    }
+    return { init, restore, dump: () => Object.fromEntries(mem), api: { doc, collection: c => collection(c) } };
+  })();
+
+  const localDownloads = { async save({ filename, data }) {
+    const type = /\.pdf$/.test(filename) ? "application/pdf" : /\.xlsx$/.test(filename) ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" : /\.json$/.test(filename) ? "application/json" : "application/octet-stream";
+    const url = URL.createObjectURL(new Blob([data], { type }));
+    const a = el("a", { href: url, download: filename }); document.body.append(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 5000);
+    return { status: "saved" };
+  } };
+
+  // ---------- Sauvegarde / restauration
+  let lastBackup = 0;
+  function backupReminder() {
+    if (!S.canWrite) return;
+    const has = S.people.length > 0;
+    if (!has || !$("evening").hidden) { showBanner(""); return; }
+    const days = lastBackup ? Math.floor((Date.now() - lastBackup) / 86400000) : null;
+    if (days === null) showBanner("Aucune sauvegarde envoyée. Touche RÉGLAGES puis « Envoyer la sauvegarde » pour mettre le registre à l'abri.");
+    else if (days >= 7) showBanner(`Dernière sauvegarde il y a ${days} jours. Réglages → « Envoyer la sauvegarde ».`);
+    else showBanner("");
+  }
+  $("bkSave").addEventListener("click", async () => {
+    try { await S.db.doc("config/sauvegarde").set({ last: Date.now() }); } catch {}
+    const docs = LocalDB.dump();
+    const data = JSON.stringify({ app: "pointage-chantier", format: 1, exportedAt: new Date().toISOString(), site: S.site, docs });
+    await save(`sauvegarde_${safeName()}_${dayKey(new Date())}.json`, data);
+    toast("Sauvegarde téléchargée. Copie-la sur un PC ou un cloud.");
+  });
+  $("bkFile").addEventListener("change", async e => {
+    const f = e.target.files && e.target.files[0]; e.target.value = ""; if (!f) return;
+    let obj;
+    try { obj = JSON.parse(await f.text()); } catch { toast("Fichier illisible."); return; }
+    if (!obj || obj.app !== "pointage-chantier" || !obj.docs) { toast("Ce fichier n'est pas une sauvegarde du pointage."); return; }
+    const n = Object.keys(obj.docs).filter(k => k.startsWith("pointages/")).length;
+    const when = obj.exportedAt ? new Date(obj.exportedAt).toLocaleString("fr-FR") : "date inconnue";
+    if (!confirm(`Restaurer la sauvegarde du ${when} (${n} pointages) ?\n\nTout ce qui est actuellement sur cette tablette sera remplacé.`)) return;
+    try { await LocalDB.restore(obj.docs); location.reload(); }
+    catch (err) { toast(writeError(err)); }
+  });
+
+  // ---------- Statistiques du mois (mêmes règles que l'Excel)
+  function monthStats(rows, month) {
+    const byId = S.byId, todayKey = dayKey(new Date());
+    const agg = {};
+    rows.forEach(r => { const k = r.date + "|" + r.societe; const a = agg[k] || (agg[k] = { date: r.date, soc: r.societe, minTa: Infinity, maxTd: null });
+      a.minTa = Math.min(a.minTa, r.ta); if (r.td) a.maxTd = Math.max(a.maxTd || 0, r.td); });
+    const groups = Object.values(agg); groups.forEach(a => { a.h = a.maxTd && a.maxTd > a.minTa ? (a.maxTd - a.minTa) / 3600000 : null; });
+    const persons = new Set(rows.map(r => r.personKey));
+    const socs = {}, days = {};
+    const S0 = s => socs[s] || (socs[s] = { soc: s, people: new Set(), n: 0, h: 0, days: new Set(), acc: 0, sansAcc: new Set(), sansCarte: new Set() });
+    let openPast = 0, openToday = 0;
+    rows.forEach(r => {
+      const s = S0(r.societe), p = byId[r.personKey] || {};
+      const d = days[r.date] || (days[r.date] = { date: r.date, people: new Set(), socs: new Set(), minTa: Infinity, maxTd: null });
+      s.people.add(r.personKey); s.n++; s.days.add(r.date); d.people.add(r.personKey); d.socs.add(r.societe);
+      d.minTa = Math.min(d.minTa, r.ta);
+      if (r.td) d.maxTd = Math.max(d.maxTd || 0, r.td); else if (r.date < todayKey) openPast++; else openToday++;
+      if (!p.accueil) s.sansAcc.add(r.personKey);
+      if (!p.carte) s.sansCarte.add(r.personKey);
+    });
+    Object.values(days).forEach(d => { d.h = d.maxTd && d.maxTd > d.minTa ? (d.maxTd - d.minTa) / 3600000 : 0; });
+    groups.forEach(a => { if (a.h != null) S0(a.soc).h += a.h; });
+    let accMonth = 0;
+    Object.values(byId).forEach(p => { if (p.accueil && dayKey(new Date(p.accueil)).slice(0, 7) === month) { accMonth++; S0(p.societe).acc++; } });
+    const nPers = persons.size;
+    const withAcc = [...persons].filter(k => (byId[k] || {}).accueil).length;
+    const withCard = [...persons].filter(k => (byId[k] || {}).carte).length;
+    const dayList = Object.values(days).sort((a, b) => a.date.localeCompare(b.date));
+    const siteHours = dayList.reduce((t, d) => t + d.h, 0);
+    const closedG = groups.filter(a => a.h != null);
+    const peak = dayList.reduce((m, d) => d.people.size > (m ? m.people.size : -1) ? d : m, null);
+    const short = k => fromKey(k).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" });
+    const r1 = v => Math.round(v * 10) / 10, fr = v => String(r1(v)).replace(".", ",");
+    const socList = Object.values(socs).filter(s => s.n > 0).sort((a, b) => b.h - a.h || a.soc.localeCompare(b.soc));
+    const avgEff = dayList.length ? dayList.reduce((a, d) => a + d.people.size, 0) / dayList.length : 0;
+    const tiles = [
+      { lab: "Heures de présence chantier", v: `${fr(siteHours)} h`, sub: dayList.length ? `soit ${fr(siteHours / dayList.length)} h par jour en moyenne` : "" },
+      { lab: "Intervenants", v: String(nPers), sub: `${socList.length} entreprise(s)` },
+      { lab: "Jours d'activité", v: String(dayList.length), sub: dayList.length ? `du ${short(dayList[0].date)} au ${short(dayList[dayList.length - 1].date)}` : "" },
+      { lab: "Effectif moyen / jour", v: fr(avgEff), sub: peak ? `pic : ${peak.people.size} le ${short(peak.date)}` : "" },
+      { lab: "Accueils sécurité du mois", v: String(accMonth), sub: `${nPers ? Math.round(withAcc / nPers * 100) : 0} % des intervenants accueillis`, warn: withAcc < nPers },
+      { lab: "Cartes BTP vérifiées", v: `${nPers ? Math.round(withCard / nPers * 100) : 0} %`, sub: `${withCard} sur ${nPers} intervenant(s)`, warn: withCard < nPers },
+      { lab: "Départs non pointés", v: String(openPast), sub: openToday ? `+ ${openToday} encore sur site aujourd'hui` : (openPast ? "à régulariser dans le journal" : "aucun oubli"), warn: openPast > 0 },
+      { lab: "Présence moyenne d'une société", v: `${fr(closedG.length ? closedG.reduce((t, a) => t + a.h, 0) / closedG.length : 0)} h`, sub: `par jour · ${groups.length} journée(s)-société` }
+    ];
+    return { tiles, socList, dayList, siteHours, nPers, withAcc, withCard, accMonth, short, fr, count: rows.length };
+  }
+
+  // ---------- Tableau de bord du mois en PDF (partageable depuis Android, contrairement à l'Excel)
+  async function buildMonthPdf({ site, periodLabel, st, logos = {} }) {
+    const W = 842, H = 595, M = 30;
+    const C = { navy: "0.137 0.251 0.369", green: "0.118 0.541 0.298", orange: "0.878 0.478 0.071", light: "0.945 0.957 0.969",
+      soft: "0.988 0.910 0.824", ink: "0.106 0.137 0.173", muted: "0.365 0.408 0.451", grid: "0.890 0.906 0.922", line: "0.835 0.855 0.878", warnTxt: "0.647 0.322 0.047", white: "1 1 1" };
+    const T = (x, y, t, sz, bold, col) => `BT /${bold ? "F2" : "F1"} ${sz} Tf ${col || C.ink} rg ${x.toFixed(1)} ${(H - y).toFixed(1)} Td (${PDFW.enc(t)}) Tj ET\n`;
+    const Tr = (xr, y, t, sz, bold, col) => T(xr - PDFW.width(t, sz, bold), y, t, sz, bold, col);
+    const Tc = (xc, y, t, sz, bold, col) => T(xc - PDFW.width(t, sz, bold) / 2, y, t, sz, bold, col);
+    const R = (x, y, w, h, col) => `${col} rg ${x.toFixed(1)} ${(H - y - h).toFixed(1)} ${w.toFixed(1)} ${h.toFixed(1)} re f\n`;
+    const L = (x1, y1, x2, y2, col, w = 0.5) => `${col} RG ${w} w ${x1.toFixed(1)} ${(H - y1).toFixed(1)} m ${x2.toFixed(1)} ${(H - y2).toFixed(1)} l S\n`;
+    const images = [];
+    const logoImgs = (await Promise.all([logos.entreprise, logos.client].map(src => PDFW.jpeg(src, 600)))).filter(Boolean);
+    const LH = 36, LWMAX = 140, LGAP = 12;
+    const boxes = logoImgs.map(im => { const k = Math.min(LH / im.h, LWMAX / im.w); return { im, w: im.w * k, h: im.h * k }; });
+    const logosW = boxes.reduce((a, b) => a + b.w, 0) + Math.max(0, boxes.length - 1) * LGAP;
+    const exported = new Date().toLocaleString("fr-FR");
+    function header(pageTitle) {
+      let ops = "", imgs = [];
+      const tw = W - 2 * M - (logosW ? logosW + 16 : 0);
+      ops += T(M, M + 16, PDFW.fit(`${pageTitle} — ${site || "Chantier"}`.toUpperCase(), tw, 17, true), 17, true);
+      ops += T(M, M + 34, PDFW.fit(`${periodLabel} · ${st.count} pointage(s) · exporté le ${exported}`, tw, 9), 9, false, C.muted);
+      let lx = W - M - logosW;
+      boxes.forEach(b => { images.push(b.im); const n = images.length - 1; imgs.push(n);
+        ops += `q ${b.w.toFixed(1)} 0 0 ${b.h.toFixed(1)} ${lx.toFixed(1)} ${(H - M - (LH + b.h) / 2 - 2).toFixed(1)} cm /Im${n} Do Q\n`; lx += b.w + LGAP; });
+      ops += L(M, M + 44, W - M, M + 44, C.navy, 1.2);
+      return { ops, imgs };
+    }
+    const sect = (x, y, w, t) => T(x, y, t, 10.5, true, C.navy) + L(x, y + 4, x + w, y + 4, C.navy, 0.8);
+
+    // ---- Page 1 : indicateurs + graphiques
+    const p1 = header("Tableau de bord");
+    let y = M + 58;
+    const gap = 8, tw = (W - 2 * M - 3 * gap) / 4, th = 62;
+    st.tiles.forEach((t, i) => {
+      const x = M + (i % 4) * (tw + gap), ty = y + Math.floor(i / 4) * (th + gap);
+      p1.ops += R(x, ty, tw, 16, t.warn ? C.orange : C.navy) + R(x, ty + 16, tw, th - 16, t.warn ? C.soft : C.light);
+      p1.ops += T(x + 7, ty + 11.5, PDFW.fit(t.lab.toUpperCase(), tw - 14, 7.5, true), 7.5, true, C.white);
+      p1.ops += T(x + 7, ty + 40, t.v, 20, true, t.warn ? C.warnTxt : C.navy);
+      p1.ops += T(x + 7, ty + 55, PDFW.fit(t.sub, tw - 14, 7.5), 7.5, false, C.muted);
+    });
+    y += 2 * th + gap + 18;
+    const cw = (W - 2 * M - 16) / 2, chTop = y + 10, chH = H - M - 14 - chTop;
+    p1.ops += sect(M, y, cw, "Heures de présence par entreprise") + sect(M + cw + 16, y, cw, "Effectif présent par jour");
+    // Barres horizontales
+    {
+      const list = st.socList.slice(0, 10), raw = Math.max(1, ...list.map(s => s.h));
+      const mag = Math.pow(10, Math.floor(Math.log10(raw / 4))), step = [1, 2, 2.5, 5, 10].map(k => k * mag).find(v => v * 4 >= raw), max = step * 4;
+      const labW = 96, x0 = M + labW, plotW = cw - labW - 40, rowH = Math.min(26, (chH - 16) / Math.max(1, list.length));
+      for (let k = 0; k <= 4; k++) { const gx = x0 + plotW * k / 4; p1.ops += L(gx, chTop + 6, gx, chTop + 8 + rowH * list.length, C.grid); p1.ops += Tc(gx, chTop + 20 + rowH * list.length, String(Math.round(max * k / 4)), 7, false, C.muted); }
+      list.forEach((s, i) => {
+        const by = chTop + 8 + i * rowH, bw = plotW * s.h / max;
+        p1.ops += Tr(x0 - 6, by + rowH / 2 + 3, PDFW.fit(s.soc, labW - 10, 8), 8, false, C.ink);
+        p1.ops += R(x0, by + rowH * 0.18, Math.max(1, bw), rowH * 0.64, C.navy);
+        p1.ops += T(x0 + bw + 4, by + rowH / 2 + 3, `${st.fr(s.h)} h`, 7.5, true, C.ink);
+      });
+      if (st.socList.length > 10) p1.ops += T(M, H - M - 2, `+ ${st.socList.length - 10} autre(s) entreprise(s) : voir page 2`, 7, false, C.muted);
+    }
+    // Colonnes par jour
+    {
+      const list = st.dayList, stepY = Math.max(1, Math.ceil(Math.max(1, ...list.map(d => d.people.size)) / 4)), max = stepY * 4;
+      const x0 = M + cw + 16 + 18, plotW = cw - 22, plotH = chH - 34, base = chTop + 10 + plotH;
+      for (let k = 0; k <= 4; k++) { const v = Math.round(max * k / 4), gy = base - plotH * (v / max); p1.ops += L(x0, gy, x0 + plotW, gy, C.grid); p1.ops += Tr(x0 - 4, gy + 2.5, String(v), 7, false, C.muted); }
+      const slot = plotW / Math.max(1, list.length), bw = Math.min(18, slot * 0.7);
+      list.forEach((d, i) => {
+        const cx = x0 + slot * (i + 0.5), bh = plotH * d.people.size / max;
+        p1.ops += R(cx - bw / 2, base - bh, bw, bh, C.green);
+        p1.ops += Tc(cx, base - bh - 3, String(d.people.size), 7, true, C.ink);
+        if (list.length <= 16 || i % 2 === 0) p1.ops += Tc(cx, base + 10, st.short(d.date), 6.5, false, C.muted);
+      });
+      p1.ops += L(x0, base, x0 + plotW, base, C.line, 0.8);
+    }
+
+    // ---- Page 2 : tableaux
+    const p2 = header("Détail du mois");
+    const table = (x, y0, cols, rowsT, total) => {
+      let ops = "", yy = y0; const rh = 15;
+      let cx = x; cols.forEach(([h, w, al]) => { ops += R(cx, yy, w, 18, C.navy); ops += (al === "l" ? T(cx + 4, yy + 12, PDFW.fit(h, w - 8, 7.5, true), 7.5, true, C.white) : Tc(cx + w / 2, yy + 12, PDFW.fit(h, w - 6, 7.5, true), 7.5, true, C.white)); cx += w; });
+      yy += 18;
+      const all = total ? [...rowsT, total] : rowsT;
+      all.forEach((row, ri) => {
+        const isTot = total && ri === all.length - 1;
+        if (isTot) ops += R(x, yy, cols.reduce((a, c) => a + c[1], 0), rh, C.grid);
+        cx = x;
+        row.forEach((v, ci) => { const [, w, al] = cols[ci]; const warn = v && typeof v === "object"; const t = String(warn ? v.t : v);
+          if (warn) ops += R(cx, yy, w, rh, C.soft);
+          ops += al === "l" ? T(cx + 4, yy + 10.5, PDFW.fit(t, w - 8, 8, isTot), 8, isTot) : Tc(cx + w / 2, yy + 10.5, t, 8, isTot); cx += w; });
+        ops += L(x, yy + rh, cx, yy + rh, C.line);
+        yy += rh;
+      });
+      return { ops, y: yy };
+    };
+    const w1 = (W - 2 * M) * 0.55, w2 = (W - 2 * M) - w1 - 20;
+    p2.ops += sect(M, M + 64, w1, "Par entreprise");
+    const eCols = [["Entreprise", w1 - 5 * 62, "l"], ["Intervenants", 62], ["Jours", 62], ["Heures", 62], ["Sans accueil", 62], ["Carte non vérif.", 62]];
+    const eRows = st.socList.map(s => [s.soc, s.people.size, s.days.size, st.fr(s.h), s.sansAcc.size ? { t: s.sansAcc.size } : 0, s.sansCarte.size ? { t: s.sansCarte.size } : 0]);
+    p2.ops += table(M, M + 74, eCols, eRows, ["CHANTIER", st.nPers, st.dayList.length, st.fr(st.siteHours), st.nPers - st.withAcc, st.nPers - st.withCard]).ops;
+    const x2 = M + w1 + 20;
+    p2.ops += sect(x2, M + 64, w2, "Par jour");
+    const dCols = [["Date", w2 * 0.22, "l"], ["Présents", w2 * 0.16], ["Entreprises", w2 * 0.18], ["1re arrivée", w2 * 0.16], ["Départ", w2 * 0.14], ["Heures", w2 * 0.14]];
+    const dRows = st.dayList.slice(0, 31).map(d => { const dd = fromKey(d.date); return [`${dd.toLocaleDateString("fr-FR", { weekday: "short" })} ${st.short(d.date)}`, d.people.size, d.socs.size, hhmm(d.minTa), d.maxTd ? hhmm(d.maxTd) : { t: "—" }, st.fr(d.h)]; });
+    p2.ops += table(x2, M + 74, dCols, dRows).ops;
+    p2.ops += T(M, H - M + 8, "Jours et heures de présence : de la 1re arrivée au dernier départ de la journée (pour une entreprise ou pour le chantier).", 7, false, C.muted);
+
+    [p1, p2].forEach((p, k) => { p.ops += Tr(W - M, H - M + 8, `Page ${k + 1} / 2`, 7, false, C.muted); });
+    return PDFW.pack([p1, p2], images, W, H);
+  }
+
+  // ---------- Envois : deux boutons, un fichier chacun
+  const monthLabel = m => `${MOIS[+m.slice(5)-1]} ${m.slice(0,4)}`.replace(/^./, c => c.toUpperCase());
+  async function dayPdfFile() {
+    const rows = [...S.viewRows].sort((a,b) => a.ta - b.ta);
+    if (!rows.length) return null;
+    const data = await buildDayPdf({ site: S.site, dayLabel: longDate(fromKey(S.view)).replace(/^./, c => c.toUpperCase()), rows, byId: S.byId, logos: S.logos });
+    return { name: `presence_${safeName()}_${S.view}.pdf`, data, type: "application/pdf" };
+  }
+  async function monthFiles() {
+    const m = S.view.slice(0,7), rows = await fetchMonths([m]);
+    if (!rows.length) return null;
+    const xlsx = { name: `tableau_de_bord_${safeName()}_${m}.xlsx`, type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      data: XLSXW.build({ site: S.site, periodLabel: monthLabel(m), rows, helpers: { fromKey, hhmm, byId: S.byId, dayKey }, month: m, logos: [S.logos.entreprise, S.logos.client] }) };
+    const pdf = { name: `tableau_de_bord_${safeName()}_${m}.pdf`, type: "application/pdf",
+      data: await buildMonthPdf({ site: S.site, periodLabel: monthLabel(m), st: monthStats(rows, m), logos: S.logos }) };
+    return { xlsx, pdf };
+  }
+  function backupFile() {
+    const docs = LocalDB.dump();
+    const data = JSON.stringify({ app: "pointage-chantier", format: 1, exportedAt: new Date().toISOString(), site: S.site, docs });
+    // Android refuse de partager un .json depuis une appli web : la sauvegarde part en .txt (même contenu)
+    return { name: `sauvegarde_${safeName()}_${dayKey(new Date())}.txt`, data, type: "text/plain" };
+  }
+  const canShareFile = f => { try { return !!(navigator.canShare && navigator.canShare({ files: [new File([f.data], f.name, { type: f.type })] })); } catch { return false; } };
+
+  // Préparation dans la fenêtre, puis un appui sur « Envoyer » ouvre le menu de partage (Android l'exige)
+  let pending = null;
+  async function openSend(kind, evening) {
+    if (evening && S.view !== S.today) setView(S.today);
+    pending = null; $("shMsg").textContent = ""; $("shGo").disabled = true; $("shGo").textContent = "Préparation…";
+    const titles = { day: evening ? "Envoi du soir" : "Envoyer la journée", month: "Envoyer le mois", backup: "Envoyer la sauvegarde" };
+    $("tShare").textContent = titles[kind];
+    $("shWhat").textContent = kind === "day" ? `Feuille de présence signée du ${longDate(fromKey(S.view))} (PDF).`
+      : kind === "month" ? `Tableau de bord de ${monthLabel(S.view.slice(0, 7)).toLowerCase()}.`
+      : "Tout le registre de la tablette, pour le mettre à l'abri. À garder dans ta boîte mail.";
+    $("dlgShare").showModal();
+    try {
+      if (kind === "day") {
+        const f = await dayPdfFile();
+        if (!f) { $("shGo").textContent = "Aucun pointage ce jour-là"; return; }
+        pending = { kind, share: f, extra: null };
+      } else if (kind === "month") {
+        const fs = await monthFiles();
+        if (!fs) { $("shGo").textContent = "Aucun pointage ce mois-ci"; return; }
+        // L'Excel part directement si Android l'accepte ; sinon on envoie le tableau de bord en PDF et l'Excel est enregistré sur la tablette
+        pending = canShareFile(fs.xlsx) ? { kind, share: fs.xlsx, extra: null } : { kind, share: fs.pdf, extra: fs.xlsx };
+        if (pending.extra) $("shWhat").textContent += " Envoyé en PDF ; l'Excel est enregistré dans Téléchargements.";
+      } else pending = { kind, share: backupFile(), extra: null };
+    } catch (err) { console.error(err); $("shGo").textContent = "Préparation impossible"; return; }
+    $("shGo").disabled = false; $("shGo").textContent = "Envoyer";
+  }
+  $("sendDay").addEventListener("click", () => openSend("day"));
+  $("sendMonth").addEventListener("click", () => openSend("month"));
+  $("bkSend").addEventListener("click", () => { $("dlgLogos").close(); openSend("backup"); });
+  function openShare(evening) { openSend("day", evening); }
+
+  $("formShare").addEventListener("submit", async e => {
+    e.preventDefault();
+    if (!pending) return;
+    const p = pending, f = p.share;
+    const file = new File([f.data], f.name, { type: f.type });
+    const title = `Pointage ${S.site || "chantier"} — ${p.kind === "month" ? monthLabel(S.view.slice(0, 7)) : S.view}`;
+    const done = async () => {
+      if (p.kind === "day") { try { await S.db.doc("config/envoi").set({ last: Date.now() }); } catch {} }
+      if (p.kind === "backup") { try { await S.db.doc("config/sauvegarde").set({ last: Date.now() }); } catch {} }
+    };
+    if (!(navigator.canShare && navigator.canShare({ files: [file] }))) {
+      await save(f.name, f.data); if (p.extra) await save(p.extra.name, p.extra.data);
+      await done(); $("dlgShare").close(); toast("Partage indisponible sur cet appareil : fichier enregistré dans Téléchargements.");
+      return;
+    }
+    try { await navigator.share({ files: [file], title, text: title }); }
+    catch (err) {
+      if (err && err.name === "AbortError") return;
+      if (err && err.name === "NotAllowedError") { $("shMsg").textContent = "Le menu de partage n'a pas pu s'ouvrir. Touche à nouveau « Envoyer »."; return; }
+      await save(f.name, f.data);
+      $("dlgShare").close(); toast(`Envoi impossible (${(err && err.name) || "erreur"}) : fichier enregistré dans Téléchargements.`);
+      return;
+    }
+    await done();
+    if (p.extra) await save(p.extra.name, p.extra.data);
+    $("dlgShare").close();
+    toast(p.extra ? "Envoi lancé. L'Excel du mois est aussi dans Téléchargements." : "Envoi lancé.");
+  });
+
+  // ---------- Envoi du soir : proposé automatiquement quand tout le monde est parti
+  const HEURE_SOIR = 17;
+  let lastSent = 0;
+  function eveningCheck() {
+    if (!S.db) return;
+    const now = new Date(), startDay = fromKey(S.today).getTime();
+    const due = now.getHours() >= HEURE_SOIR && S.todayRows.length > 0 && lastSent < startDay;
+    const was = $("evening").hidden;
+    $("evening").hidden = !due;
+    if (was !== !due) backupReminder();
+    if (!due) return;
+    const present = S.todayRows.filter(r => !r.td).length;
+    $("eveTxt").textContent = present
+      ? ` ${present} personne${present > 1 ? "s" : ""} encore sur site. L'envoi s'ouvrira tout seul au dernier départ.`
+      : " Tout le monde est parti. Envoie la journée en un geste.";
+    let shown = ""; try { shown = localStorage.getItem("pointage.soir") || ""; } catch {}
+    const busy = [...document.querySelectorAll("dialog")].some(d => d.open);
+    if (!present && !busy && shown !== S.today) {
+      try { localStorage.setItem("pointage.soir", S.today); } catch {}
+      openShare(true);
+    }
+  }
+  $("eveBtn").addEventListener("click", () => openShare(true));
+
+  // ---------- Logos des exports (stockés sur la tablette, en PNG réduit)
+  function logoToPng(file) {
+    return new Promise((res, rej) => {
+      const url = URL.createObjectURL(file), img = new Image();
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        const k = Math.min(1, 600 / img.naturalWidth, 300 / img.naturalHeight);
+        const c = document.createElement("canvas"); c.width = Math.max(1, Math.round(img.naturalWidth * k)); c.height = Math.max(1, Math.round(img.naturalHeight * k));
+        c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+        res(c.toDataURL("image/png"));
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); rej(new Error("image")); };
+      img.src = url;
+    });
+  }
+  function paintLogos() {
+    ["entreprise", "client"].forEach(k => {
+      const box = $("lp_" + k), src = S.logos[k];
+      box.replaceChildren(src ? el("img", { src, alt: k === "client" ? "Logo client" : "Logo entreprise" }) : el("span", { text: "Aucun logo" }));
+      document.querySelector(`[data-logodel="${k}"]`).hidden = !src;
+    });
+  }
+  async function saveLogos(next) {
+    try { await S.db.doc("config/logos").set(next); toast("Logos enregistrés."); }
+    catch (err) { toast(writeError(err)); }
+  }
+  $("btnLogos").addEventListener("click", () => { paintLogos(); $("dlgLogos").showModal(); });
+  document.querySelectorAll("input[data-logo]").forEach(inp => inp.addEventListener("change", async e => {
+    const f = e.target.files && e.target.files[0], k = e.target.dataset.logo; e.target.value = ""; if (!f) return;
+    let data; try { data = await logoToPng(f); } catch { toast("Image illisible. Choisis un PNG ou un JPG."); return; }
+    await saveLogos({ ...S.logos, [k]: data });
+  }));
+  document.querySelectorAll("[data-logodel]").forEach(b => b.addEventListener("click", () => saveLogos({ ...S.logos, [b.dataset.logodel]: null })));
+
+  (async () => {
+    try { await LocalDB.init(); } catch { render(); return; }
+    if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+    const db = LocalDB.api;
+    downloads = localDownloads;
+    S.db = db; S.canWrite = true;
+    db.doc("config/chantier").onSnapshot(s => { S.site = (s.exists && s.data().nom) || ""; paintSite(); }, () => {});
+    db.doc("config/logos").onSnapshot(s => { const d = (s.exists && s.data()) || {}; S.logos = { entreprise: d.entreprise || null, client: d.client || null }; if ($("dlgLogos").open) paintLogos(); }, () => {});
+    db.doc("config/sauvegarde").onSnapshot(s => { lastBackup = (s.exists && s.data().last) || 0; backupReminder(); }, () => {});
+    db.doc("config/envoi").onSnapshot(s => { lastSent = (s.exists && s.data().last) || 0; eveningCheck(); }, () => {});
+    db.collection("personnes").onSnapshot(s => { S.people = s.docs.map(d => ({ id: d.id, ...d.data() })); S.byId = Object.fromEntries(S.people.map(p => [p.id, p])); render(); backupReminder(); if ($("dlgIn").open) refreshAcc(); }, () => {});
+    subToday(); setView(S.view); paintSite(); render();
+  })();
+  if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) navigator.serviceWorker.register("sw.js").catch(() => {});
+})();
+</script>
+</body>
+</html>
