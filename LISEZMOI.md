@@ -35,17 +35,20 @@ Alternative : GitHub Pages, ou un serveur web Ensio en HTTPS (demander au servic
 - **Première arrivée d'une personne sur le chantier** : deux cases, **Accueil sécurité fait** et **Carte BTP vérifiée**. La case carte BTP n'apparaît qu'à cette première arrivée ; ensuite c'est mémorisé.
 - Si l'accueil n'a pas été coché, il est redemandé aux arrivées suivantes. Si la carte n'a pas été cochée, un badge orange le rappelle dans le journal ; on régularise en touchant la ligne de la personne.
 - Toujours ouvrir l'appli **depuis l'icône**, jamais en navigation privée.
-- **Réglages** : sauvegarde, restauration, logos, et téléchargement direct du PDF du jour ou de l'Excel du mois dans *Téléchargements*.
+- **Sortie temporaire** (pause déjeuner, fournitures / dépôt) : bouton **Départ** → la personne → un des deux gros boutons orange. Un appui, sans signature. Elle passe « En pause ».
+- **Retour de pause** : bouton **Arrivée** → son nom apparaît en haut (« De retour de pause ? ») → un appui.
+- Si la personne part en fin de journée sans être revenue, son départ définitif (avec signature) clôt la pause. Les pauses sont **déduites** de sa durée de présence (journal, PDF du jour, Excel).
+- **Réglages** : envoi de la journée et du mois, sauvegarde, restauration, logos.
 
 ## 3 bis. Envoyer les documents
 
-Deux boutons dans le journal, un fichier chacun :
-- **Envoyer la journée** : la feuille de présence signée du jour affiché, en PDF.
-- **Envoyer le mois** : le tableau de bord du mois. Android ne laisse pas une appli web joindre un Excel : il part donc en **PDF** (indicateurs, graphiques, détail), et l'**Excel** complet est enregistré en même temps dans *Téléchargements*.
+Les deux envois sont dans **Réglages → Envoyer**, un fichier chacun. Choisis d'abord le **jour** ou le **mois** voulu (par défaut : le jour affiché dans le journal) ; on peut ainsi renvoyer n'importe quel mois passé, par exemple août :
+- **Réglages → Envoyer la journée** : la feuille de présence signée du jour affiché, en PDF.
+- **Réglages → Envoyer le mois** : le tableau de bord du mois en **Excel**. Android ne laisse pas une appli web joindre un Excel automatiquement : le fichier est enregistré dans *Téléchargements*, puis Gmail s'ouvre ; il suffit de l'ajouter avec le trombone 📎.
 
 Toucher le bouton prépare le fichier, puis toucher **Envoyer** ouvre le menu de partage → choisir **Gmail**. Sans réseau, Gmail garde le mail dans la boîte d'envoi et l'envoie dès que la tablette capte.
 
-**Envoi du soir** : à partir de 17 h, au dernier départ pointé, « Envoyer la journée » s'ouvre tout seul.
+**Envoi du soir** : à partir de 17 h, au dernier départ pointé, « Envoyer la journée » s'ouvre tout seul (une fois par jour).
 
 Astuce : configurer sur la tablette un compte Gmail dédié au chantier, et s'envoyer les mails à soi-même.
 

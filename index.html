@@ -168,8 +168,20 @@ label.f input:focus{border-color:var(--accent);outline:none}
 .toast{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--panel);padding:12px 18px;border-radius:8px;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,.3);max-width:calc(100vw - 32px);z-index:10}
 @media (prefers-reduced-motion:no-preference){.toast{animation:up .18s ease-out}@keyframes up{from{transform:translate(-50%,8px);opacity:0}}}
 
+/* Sorties temporaires */
+.pill.pause{background:var(--out-soft);color:var(--ink);border:1px solid var(--out)}
+.who .so{font-size:13px;color:var(--muted)}
+.tempbox{display:grid;gap:8px;margin-top:12px}
+.tempbox .ql{font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.tempbtn{border:2px solid var(--out);background:var(--out-soft);color:var(--ink);border-radius:10px;padding:14px 12px;font-weight:700;font-size:17px;min-height:56px}
+.retchip{border:2px solid var(--in);background:var(--in-soft);color:var(--ink);border-radius:10px;padding:12px;font-weight:700;font-size:16px;text-align:left;display:grid;gap:2px}
+.retchip small{font-weight:500;color:var(--muted)}
 /* Réglages */
 .rsec{display:grid;gap:8px;padding-bottom:12px;border-bottom:1px solid var(--line)}
+.pickrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.pickrow label{font-weight:600;color:var(--muted);width:40px}
+.pickrow input{font:500 16px var(--body);padding:9px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);flex:1 1 150px;min-width:0}
+.pickrow .btn{flex:1 1 170px}
 /* Logos */
 .logoslots{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .logoslot{display:grid;gap:8px;align-content:start}
@@ -250,8 +262,6 @@ label.f input:focus{border-color:var(--accent);outline:none}
         <button class="btn" id="goToday" type="button">Aujourd'hui</button>
       </div>
       <div class="exports" id="exports" hidden>
-        <button class="btn primary" id="sendDay" type="button">Envoyer la journée</button>
-        <button class="btn primary" id="sendMonth" type="button">Envoyer le mois</button>
         <button class="btn" id="btnLogos" type="button">Réglages</button>
       </div>
     </div>
@@ -271,6 +281,7 @@ label.f input:focus{border-color:var(--accent);outline:none}
     <div class="fixrow" id="inFix" hidden>
       <input type="date" id="inFixDate" aria-label="Date d'arrivée"><input type="time" id="inFixTime" aria-label="Heure d'arrivée">
     </div>
+    <div class="quick" id="retBox" hidden><span class="ql">De retour de pause ? Touche son nom</span><div style="display:grid;gap:6px" id="retChips"></div></div>
     <div class="quick" id="quick" hidden><span class="ql">Déjà venus — touche pour remplir</span><div class="qchips" id="qchips"></div></div>
     <div class="fields">
       <label class="f">Nom<input id="fNom" autocomplete="off" autocapitalize="characters" required></label>
@@ -309,6 +320,11 @@ label.f input:focus{border-color:var(--accent);outline:none}
     </div>
     <div id="outSign" hidden>
       <div class="picked"><div class="who"><div class="n" id="pkName"></div><div class="s" id="pkSub"></div></div><button class="btn" type="button" id="pkChange">Changer</button></div>
+      <div class="tempbox" id="tempBox">
+        <span class="ql">Sortie temporaire — un appui, sans signature</span>
+        <div class="accrow"><button class="tempbtn" type="button" data-motif="Pause déjeuner">Pause déjeuner</button><button class="tempbtn" type="button" data-motif="Fournitures / dépôt">Fournitures / dépôt</button></div>
+        <span class="ql" style="margin-top:6px">Ou départ définitif — signature</span>
+      </div>
       <div class="sigbox" style="margin-top:12px">
         <div class="sighead"><span>Signature de départ</span><button class="btn" type="button" data-clear="padOut">Effacer</button></div>
         <div class="pad" id="padOut"><canvas></canvas><div class="hint">Signer ici avec le doigt</div></div>
@@ -325,6 +341,11 @@ label.f input:focus{border-color:var(--accent);outline:none}
   <form class="dlg" method="dialog">
     <div class="dtitle neutral"><h3 id="tLogos">Réglages</h3><button class="x" type="button" data-close aria-label="Fermer">×</button></div>
     <div class="rsec">
+      <b>Envoyer</b>
+      <div class="pickrow"><label for="selDay">Jour</label><input type="date" id="selDay"><button class="btn primary" id="sendDay" type="button">Envoyer la journée</button></div>
+      <div class="pickrow"><label for="selMonth">Mois</label><input type="month" id="selMonth"><button class="btn primary" id="sendMonth" type="button">Envoyer le mois</button></div>
+    </div>
+    <div class="rsec">
       <b>Sauvegarde</b>
       <div class="s" style="color:var(--muted)">À envoyer régulièrement : si la tablette est perdue ou cassée, c'est ce fichier qui permet de tout récupérer.</div>
       <div class="fixrow">
@@ -333,11 +354,11 @@ label.f input:focus{border-color:var(--accent);outline:none}
         <label class="btn fbtn" id="bkLoad">Restaurer<input type="file" accept=".json,.txt,application/json,text/plain" class="fileov" id="bkFile" aria-label="Restaurer une sauvegarde"></label>
       </div>
     </div>
-    <div class="rsec">
+    <div class="rsec" hidden>
       <b>Télécharger sur la tablette</b>
       <div class="fixrow">
-        <button class="btn" id="expSheet" type="button">PDF du jour</button>
-        <button class="btn" id="expMonth" type="button">Excel du mois</button>
+        <button class="btn" id="expSheet" type="button">PDF du jour choisi</button>
+        <button class="btn" id="expMonth" type="button">Excel du mois choisi</button>
       </div>
     </div>
     <b>Logos des exports</b>
@@ -354,7 +375,7 @@ label.f input:focus{border-color:var(--accent);outline:none}
         <div class="fixrow"><label class="btn fbtn">Choisir une image<input type="file" accept="image/png,image/jpeg,image/webp" class="fileov" data-logo="client" aria-label="Logo client"></label><button class="btn danger" type="button" data-logodel="client">Retirer</button></div>
       </div>
     </div>
-    <div class="s" style="color:var(--muted);font-size:13px">Version de l'appli : <b>v10 · 1er octobre 2026</b></div>
+    <div class="s" style="color:var(--muted);font-size:13px">Version de l'appli : <b>v12 · 10 octobre 2026</b></div>
   </form>
 </dialog>
 
@@ -372,7 +393,7 @@ label.f input:focus{border-color:var(--accent);outline:none}
 <dialog id="dlgDetail" aria-labelledby="tDet">
   <form class="dlg" id="formDet" method="dialog">
     <div class="dtitle neutral"><h3 id="tDet">Pointage</h3><button class="x" type="button" data-close aria-label="Fermer">×</button></div>
-    <div class="who"><div class="n" id="dName" style="font-size:20px"></div><div class="s" id="dSoc"></div></div>
+    <div class="who"><div class="n" id="dName" style="font-size:20px"></div><div class="s" id="dSoc"></div><div class="s" id="dSorties"></div></div>
     <div class="detail">
       <figure><figcaption>Arrivée</figcaption><div id="dSigIn"></div><input type="time" id="dIn" class="num" aria-label="Heure d'arrivée" style="font:500 16px var(--mono);padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink)"></figure>
       <figure><figcaption>Départ</figcaption><div id="dSigOut"></div><input type="time" id="dOut" aria-label="Heure de départ" style="font:500 16px var(--mono);padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink)"></figure>
@@ -404,6 +425,11 @@ label.f input:focus{border-color:var(--accent);outline:none}
   const hhmm = ms => { const d = new Date(ms); return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`; };
   const longDate = d => d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
   const fromKey = k => { const [y,m,d] = k.split("-").map(Number); return new Date(y, m-1, d); };
+  // Sorties temporaires (pause déjeuner, fournitures…) : [{ out, back, motif }]
+  const openSortie = r => (r.sorties || []).find(x => !x.back) || null;
+  const pauseMs = (r, end) => (r.sorties || []).reduce((t, x) => t + Math.max(0, Math.min(x.back || end, end) - x.out), 0);
+  const workMs = (r, end) => Math.max(0, (end - r.ta) - pauseMs(r, end));
+  const sortiesTxt = (r, long) => (r.sorties || []).map(x => `${hhmm(x.out)}–${x.back ? hhmm(x.back) : "…"}${long ? " " + x.motif : ""}`).join(long ? " ; " : "  ");
   const dur = ms => { if (ms < 0) ms = 0; const m = Math.round(ms/60000); return `${Math.floor(m/60)} h ${pad2(m%60)}`; };
   const norm = s => (s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().trim();
   const slug = s => norm(s).replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"") || "x";
@@ -499,20 +525,21 @@ label.f input:focus{border-color:var(--accent);outline:none}
   // ---------- Rendu
   function render() {
     const now = Date.now();
-    const present = S.todayRows.filter(r => !r.td);
+    const present = S.todayRows.filter(r => !r.td && !openSortie(r));
+    const paused = S.todayRows.filter(r => !r.td && openSortie(r));
     const left = S.todayRows.filter(r => r.td);
     // Présence chantier du jour : de la 1re arrivée au dernier départ (ou maintenant si quelqu'un est encore sur site)
     const firstIn = S.todayRows.reduce((m, r) => Math.min(m, r.ta), Infinity);
-    const lastOut = present.length ? now : S.todayRows.reduce((m, r) => Math.max(m, r.td || 0), 0);
+    const lastOut = present.length || paused.length ? now : S.todayRows.reduce((m, r) => Math.max(m, r.td || 0), 0);
     const hours = S.todayRows.length && lastOut > firstIn ? lastOut - firstIn : 0;
     $("stPresent").textContent = present.length;
     $("stLeft").textContent = left.length;
     $("stTotal").textContent = S.todayRows.length;
     { const mins = Math.round(hours / 60000); $("stHours").textContent = `${Math.floor(mins / 60)} h ${pad2(mins % 60)}`; }
-    $("subIn").textContent = S.todayRows.length ? `${S.todayRows.length} pointé${S.todayRows.length>1?"s":""} aujourd'hui` : "Pointer une entrée";
-    $("subOut").textContent = present.length ? `${present.length} sur site` : "Personne sur site";
+    $("subIn").textContent = paused.length ? `${paused.length} en pause · touche pour le retour` : S.todayRows.length ? `${S.todayRows.length} pointé${S.todayRows.length>1?"s":""} aujourd'hui` : "Pointer une entrée";
+    $("subOut").textContent = present.length || paused.length ? `${present.length} sur site${paused.length ? ` · ${paused.length} en pause` : ""}` : "Personne sur site";
     $("btnIn").disabled = !S.db || !S.canWrite;
-    $("btnOut").disabled = !S.db || !S.canWrite || !present.length;
+    $("btnOut").disabled = !S.db || !S.canWrite || !(present.length || paused.length);
     $("exports").hidden = !S.db;
     $("next").disabled = S.view >= S.today;
 
@@ -544,10 +571,11 @@ label.f input:focus{border-color:var(--accent);outline:none}
       if (!pp.accueil) flags.push(el("span",{class:"pill warn", text:"⚠ Accueil à faire"}));
       if (!pp.carte) flags.push(el("span",{class:"pill warn", text:"⚠ Carte BTP"}));
       const btn = el("button",{class:"row", type:"button", onclick: () => openDetail(r)},
-        el("div",{class:"who"}, el("div",{class:"n", text:`${r.nom} ${r.prenom}`}), el("div",{class:"s", text:r.societe}), flags.length ? el("div",{class:"flags"}, ...flags) : null),
+        el("div",{class:"who"}, el("div",{class:"n", text:`${r.nom} ${r.prenom}`}), el("div",{class:"s", text:r.societe}),
+          (r.sorties || []).length ? el("div",{class:"so", text:"Sorties : " + sortiesTxt(r, true)}) : null, flags.length ? el("div",{class:"flags"}, ...flags) : null),
         el("div",{class:"tm c-in"}, el("span",{class:"lblm", text:"Arrivée"}), hhmm(r.ta)),
-        el("div",{class:"tm c-out"}, el("span",{class:"lblm", text:"Départ"}), r.td ? hhmm(r.td) : el("span",{class:"pill on", text:"Sur site"})),
-        el("div",{class:"tm c-dur"}, el("span",{class:"lblm", text:"Durée"}), dur((r.td || (S.view===S.today ? now : r.ta)) - r.ta)),
+        el("div",{class:"tm c-out"}, el("span",{class:"lblm", text:"Départ"}), r.td ? hhmm(r.td) : openSortie(r) ? el("span",{class:"pill pause", text:"En pause"}) : el("span",{class:"pill on", text:"Sur site"})),
+        el("div",{class:"tm c-dur"}, el("span",{class:"lblm", text:"Durée"}), dur(workMs(r, r.td || (S.view===S.today ? now : r.ta)))),
         el("div",{class:"sigs c-sig"}, sig(r.sigIn), sig(r.sigOut)));
       box.append(btn);
     });
@@ -559,9 +587,22 @@ label.f input:focus{border-color:var(--accent);outline:none}
     $("formIn").reset(); $("inMsg").textContent = ""; $("inFix").hidden = true; inWhen = null; inAcc = false; inCard = false;
     const now = new Date(); setStamp("in", now);
     $("inFixDate").value = dayKey(now); $("inFixTime").value = hhmm(now);
-    fillQuick(""); fillSocList();
+    fillQuick(""); fillSocList(); fillReturns();
     $("dlgIn").showModal(); padIn.size(); padIn.clear(); checkIn();
     setTimeout(() => $("fNom").focus(), 50);
+  }
+  function fillReturns() {
+    const list = S.todayRows.filter(r => !r.td && openSortie(r)).sort((a, b) => a.nom.localeCompare(b.nom));
+    $("retChips").replaceChildren(...list.map(r => { const o = openSortie(r);
+      return el("button", { class: "retchip", type: "button", onclick: () => backFromPause(r) },
+        `${r.nom} ${r.prenom} — retour`, el("small", { text: `${r.societe} · ${o.motif} depuis ${hhmm(o.out)}` })); }));
+    $("retBox").hidden = !list.length;
+  }
+  async function backFromPause(r) {
+    const now = Date.now();
+    const sorties = (r.sorties || []).map(x => x.back ? x : { ...x, back: now });
+    try { await S.db.doc("pointages/" + r.id).update({ sorties }); $("dlgIn").close(); toast(`Retour de ${r.nom} ${r.prenom} à ${hhmm(now)}`); }
+    catch (err) { $("inMsg").textContent = writeError(err); }
   }
   function fillSocList() {
     const socs = [...new Set(S.people.map(p => p.societe))].sort();
@@ -585,7 +626,7 @@ label.f input:focus{border-color:var(--accent);outline:none}
     if (n && p && s) {
       const k = personKey(n,p,s);
       const already = S.todayRows.find(r => r.personKey === k && !r.td);
-      if (already) msg = `${n.toUpperCase()} ${capFirst(p)} est déjà sur site depuis ${hhmm(already.ta)}.`;
+      if (already) msg = openSortie(already) ? `${n.toUpperCase()} ${capFirst(p)} est en pause : touche son nom en haut pour signaler le retour.` : `${n.toUpperCase()} ${capFirst(p)} est déjà sur site depuis ${hhmm(already.ta)}.`;
     }
     $("inMsg").textContent = msg;
     refreshAcc();
@@ -657,10 +698,13 @@ label.f input:focus{border-color:var(--accent);outline:none}
     if (!list.length) box.append(el("div",{class:"empty", style:"padding:16px"}, el("span",{text: q ? "Personne ne correspond." : "Personne n'est sur site."})));
     list.forEach(r => box.append(el("button",{class:"pitem", type:"button", onclick: () => pickOut(r)},
       el("div",{class:"who"}, el("div",{class:"n", text:`${r.nom} ${r.prenom}`}), el("div",{class:"s", text:r.societe})),
-      el("span",{class:"tm", text:"depuis " + hhmm(r.ta)}))));
+      el("span",{class:"tm", text: openSortie(r) ? "en pause depuis " + hhmm(openSortie(r).out) : "depuis " + hhmm(r.ta)}))));
   }
   function pickOut(r) {
-    outRow = r; $("pkName").textContent = `${r.nom} ${r.prenom}`; $("pkSub").textContent = `${r.societe} · arrivé à ${hhmm(r.ta)}`;
+    outRow = r; $("pkName").textContent = `${r.nom} ${r.prenom}`;
+    const o = openSortie(r);
+    $("pkSub").textContent = o ? `${r.societe} · en pause (${o.motif}) depuis ${hhmm(o.out)}` : `${r.societe} · arrivé à ${hhmm(r.ta)}`;
+    $("tempBox").hidden = !!o;
     $("outPick").hidden = true; $("outSign").hidden = false; padOut.size(); padOut.clear(); checkOut();
   }
   function checkOut() { $("goOut").disabled = !(outRow && padOut.signed); }
@@ -668,6 +712,15 @@ label.f input:focus{border-color:var(--accent);outline:none}
   $("outSearch").addEventListener("input", e => fillPresent(e.target.value));
   $("pkChange").addEventListener("click", () => { outRow = null; $("outPick").hidden = false; $("outSign").hidden = true; checkOut(); });
   $("outFixBtn").addEventListener("click", () => { $("outFix").hidden = !$("outFix").hidden; });
+  document.querySelectorAll("[data-motif]").forEach(b => b.addEventListener("click", async () => {
+    if (!outRow) return;
+    let when = new Date();
+    if (!$("outFix").hidden && $("outFixTime").value) { const [h,m] = $("outFixTime").value.split(":").map(Number); when = fromKey(outRow.date); when.setHours(h,m,0,0); }
+    if (when.getTime() < outRow.ta) { $("outMsg").textContent = "L'heure de sortie est avant l'heure d'arrivée."; return; }
+    const sorties = [...(outRow.sorties || []), { out: when.getTime(), back: null, motif: b.dataset.motif }];
+    try { await S.db.doc("pointages/" + outRow.id).update({ sorties }); $("dlgOut").close(); toast(`${outRow.nom} ${outRow.prenom} : ${b.dataset.motif.toLowerCase()} à ${hhmm(when)}`); }
+    catch (err) { $("outMsg").textContent = writeError(err); }
+  }));
   $("formOut").addEventListener("submit", async e => {
     e.preventDefault(); if ($("goOut").disabled || !outRow) return;
     let when = new Date();
@@ -675,7 +728,10 @@ label.f input:focus{border-color:var(--accent);outline:none}
     if (when.getTime() < outRow.ta) { $("outMsg").textContent = "L'heure de départ est avant l'heure d'arrivée."; return; }
     $("goOut").disabled = true;
     try {
-      await S.db.doc("pointages/" + outRow.id).update({ td: when.getTime(), sigOut: padOut.image() });
+      const upd = { td: when.getTime(), sigOut: padOut.image() };
+      // Parti sans revenir de pause : la pause se termine au départ
+      if (openSortie(outRow)) upd.sorties = outRow.sorties.map(x => x.back ? x : { ...x, back: Math.max(x.out, when.getTime()) });
+      await S.db.doc("pointages/" + outRow.id).update(upd);
       $("dlgOut").close(); toast(`Départ de ${outRow.nom} ${outRow.prenom} à ${hhmm(when)}`);
     } catch (err) { $("outMsg").textContent = writeError(err); $("goOut").disabled = false; }
   });
@@ -688,6 +744,7 @@ label.f input:focus{border-color:var(--accent);outline:none}
     const sig = src => src ? el("img",{src, alt:"Signature"}) : el("div",{class:"nosig", text:"Non signé"});
     $("dSigIn").replaceChildren(sig(r.sigIn)); $("dSigOut").replaceChildren(sig(r.sigOut));
     $("dIn").value = hhmm(r.ta); $("dOut").value = r.td ? hhmm(r.td) : "";
+    $("dSorties").textContent = (r.sorties || []).length ? `Sorties : ${sortiesTxt(r, true)} · pauses ${dur(pauseMs(r, r.td || Date.now()))}` : "";
     [$("dIn"),$("dOut"),$("dSave"),$("dDel")].forEach(x => x.disabled = !S.canWrite);
     paintPerson();
     $("dlgDetail").showModal();
@@ -827,7 +884,7 @@ label.f input:focus{border-color:var(--accent);outline:none}
 
   async function buildDayPdf({ site, dayLabel, rows, byId, logos = {} }) {
     const W = 842, H = 595, M = 30;
-    const cols = [["#",20],["Nom",108],["Prénom",84],["Société",112],["Arrivée",48],["Signature",104],["Départ",48],["Signature",104],["Durée",54],["Accueil",100]];
+    const cols = [["#",20],["Nom",96],["Prénom",72],["Société",96],["Arrivée",44],["Signature",92],["Départ",44],["Signature",92],["Sorties",108],["Durée",46],["Accueil",72]];
     const images = [], pages = [];
     const sigs = await Promise.all(rows.map(async r => [await PDFW.jpeg(r.sigIn), await PDFW.jpeg(r.sigOut)]));
     // Logos en haut à droite : entreprise puis client, hauteur max 34 pt
@@ -860,7 +917,7 @@ label.f input:focus{border-color:var(--accent);outline:none}
       y += HEAD;
       while (i < rows.length && y + ROW <= bottom) {
         const r = rows[i], pp = byId[r.personKey] || {};
-        const vals = [String(i + 1), r.nom, r.prenom, r.societe, hhmm(r.ta), null, r.td ? hhmm(r.td) : "—", null, r.td ? dur(r.td - r.ta) : "", pp.accueil ? "Fait le " + new Date(pp.accueil).toLocaleDateString("fr-FR") : "Non fait"];
+        const vals = [String(i + 1), r.nom, r.prenom, r.societe, hhmm(r.ta), null, r.td ? hhmm(r.td) : "—", null, sortiesTxt(r, false), r.td ? dur(workMs(r, r.td)) : "", pp.accueil ? "Fait le " + new Date(pp.accueil).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" }) : "Non fait"];
         x = M;
         cols.forEach(([, w], c) => {
           ops += rect(x, y, w, ROW);
@@ -871,7 +928,7 @@ label.f input:focus{border-color:var(--accent);outline:none}
               ops += `q ${iw.toFixed(1)} 0 0 ${ih.toFixed(1)} ${(x + 4 + (bw - iw) / 2).toFixed(1)} ${(H - y - 3 - (bh + ih) / 2).toFixed(1)} cm /Im${n} Do Q\n`; }
             else ops += txt(x + 4, y + 19, c === 7 && !r.td ? "" : "Non signé", 8, false, .45);
           } else {
-            const bold = c === 1, warn = c === 9 && !pp.accueil;
+            const bold = c === 1, warn = c === 10 && !pp.accueil;
             ops += txt(x + 4, y + 19, PDFW.fit(vals[c], w - 8, 9, bold), 9, bold, warn ? .1 : 0) ;
           }
           x += w;
@@ -881,7 +938,7 @@ label.f input:focus{border-color:var(--accent);outline:none}
       pageBuf.push({ ops, imgs });
     } while (i < rows.length);
     const n = pageBuf.length;
-    pageBuf.forEach((pg, k) => { pg.ops += txt(M, H - M + 8, `Exporté le ${exported} · Page ${k + 1} / ${n}`, 7.5, false, .45); pages.push(pg); });
+    pageBuf.forEach((pg, k) => { pg.ops += txt(M, H - M + 8, `Exporté le ${exported} · Page ${k + 1} / ${n} · Durée = présence sur site, sorties temporaires déduites`, 7.5, false, .45); pages.push(pg); });
     return PDFW.pack(pages, images, W, H);
   }
   $("expSheet").addEventListener("click", async () => {
@@ -1055,8 +1112,8 @@ ${drawing ? `<drawing r:id="rId1"/>` : ""}
 
       // ================= Historique =================
       const hDraw = [];
-      const head = ["Date", "Jour", "Nom", "Prénom", "Société", "Arrivée", "Signature arrivée", "Départ", "Signature départ", "Durée (h)", "Accueil sécurité", "Carte BTP vérifiée"];
-      const hCols = [11, 10, 18, 15, 20, 9, 18, 11, 18, 10, 14, 12];
+      const head = ["Date", "Jour", "Nom", "Prénom", "Société", "Arrivée", "Signature arrivée", "Départ", "Signature départ", "Sorties temporaires", "Pauses (h)", "Durée (h)", "Accueil sécurité", "Carte BTP vérifiée"];
+      const hCols = [11, 10, 18, 15, 20, 9, 18, 11, 18, 26, 9, 10, 14, 12];
       const hRows = [
         { cells: [[`Registre de présence — ${site || "Chantier"}`, ST.title]], ht: logoMedia.length ? 44 : 24 },
         { cells: [[`${periodLabel} · ${rows.length} pointage(s) · exporté le ${exported}`, ST.sub]] },
@@ -1070,7 +1127,9 @@ ${drawing ? `<drawing r:id="rId1"/>` : ""}
           [d, ST.date], [d.toLocaleDateString("fr-FR", { weekday: "long" }), ST.text], [r.nom, ST.text], [r.prenom, ST.text], [r.societe, ST.text],
           [hhmm(r.ta), ST.num], [r.sigIn ? "" : "Non signé", ST.num],
           r.td ? [hhmm(r.td), ST.num] : ["Non pointé", ST.warn], [r.td && !r.sigOut ? "Non signé" : "", ST.num],
-          [r.td ? Math.round((r.td - r.ta) / 36000) / 100 : "", ST.dec2],
+          [sortiesTxt(r, true), ST.text],
+          [(r.sorties || []).length ? Math.round(pauseMs(r, r.td || Date.now()) / 36000) / 100 : "", ST.dec2],
+          [r.td ? Math.round(workMs(r, r.td) / 36000) / 100 : "", ST.dec2],
           p.accueil ? [new Date(p.accueil), ST.date] : ["Non fait", ST.warn],
           p.carte ? ["Oui", ST.num] : ["Non", ST.warn]
         ] });
@@ -1213,7 +1272,7 @@ ${drawing ? `<drawing r:id="rId1"/>` : ""}
       // ================= Assemblage =================
       const sheets = [
         { name: "Tableau de bord", xml: sheetXml({ rows: D, cols: dCols, merges, selected: true, grid: false, drawing: dDraw.length > 0, scale: 76, breakAfter: chartTop + chartRows }), draw: dDraw },
-        { name: "Historique", xml: sheetXml({ rows: hRows, cols: hCols, freezeRow: 4, filter: `A4:L${Math.max(hLast, 4)}`, drawing: hDraw.length > 0, merges: ["A1:L1", "A2:L2"] }), draw: hDraw },
+        { name: "Historique", xml: sheetXml({ rows: hRows, cols: hCols, freezeRow: 4, filter: `A4:N${Math.max(hLast, 4)}`, drawing: hDraw.length > 0, merges: ["A1:N1", "A2:N2"] }), draw: hDraw },
         { name: "Synthèse sociétés", xml: sheetXml({ rows: syn, cols: [12, 24, 11, 12, 14, 17, 18], freezeRow: 1, filter: `A1:G${dayEnd}` }), draw: [] }
       ];
       const files = [], ct = [];
@@ -1247,7 +1306,7 @@ ${drawing ? `<drawing r:id="rId1"/>` : ""}
         { name: "_rels/.rels", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>` },
         { name: "xl/workbook.xml", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><bookViews><workbookView activeTab="0"/></bookViews><sheets>${sheets.map((sh, i) => `<sheet name="${x(sh.name)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join("")}</sheets><definedNames><definedName name="_xlnm._FilterDatabase" localSheetId="1" hidden="1">Historique!$A$4:$L$${Math.max(hLast, 4)}</definedName><definedName name="_xlnm._FilterDatabase" localSheetId="2" hidden="1">'Synthèse sociétés'!$A$1:$G$${dayEnd}</definedName><definedName name="_xlnm.Print_Titles" localSheetId="1">Historique!$4:$4</definedName></definedNames></workbook>` },
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><bookViews><workbookView activeTab="0"/></bookViews><sheets>${sheets.map((sh, i) => `<sheet name="${x(sh.name)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join("")}</sheets><definedNames><definedName name="_xlnm._FilterDatabase" localSheetId="1" hidden="1">Historique!$A$4:$N$${Math.max(hLast, 4)}</definedName><definedName name="_xlnm._FilterDatabase" localSheetId="2" hidden="1">'Synthèse sociétés'!$A$1:$G$${dayEnd}</definedName><definedName name="_xlnm.Print_Titles" localSheetId="1">Historique!$4:$4</definedName></definedNames></workbook>` },
         { name: "xl/_rels/workbook.xml.rels", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join("")}<Relationship Id="rId${sheets.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>` },
         { name: "xl/styles.xml", data: STYLES }
@@ -1271,7 +1330,7 @@ ${drawing ? `<drawing r:id="rId1"/>` : ""}
       await save(`presences_${safeName()}_${label}.xlsx`, bytes);
     } finally { btns.forEach(b => b.disabled = false); }
   }
-  $("expMonth").addEventListener("click", () => { const m = S.view.slice(0,7); exportExcel([m], m, `${MOIS[+m.slice(5)-1]} ${m.slice(0,4)}`.replace(/^./, c => c.toUpperCase())); });
+  $("expMonth").addEventListener("click", () => { const m = selMonth(); exportExcel([m], m, `${MOIS[+m.slice(5)-1]} ${m.slice(0,4)}`.replace(/^./, c => c.toUpperCase())); });
 
   // ---------- Navigation
   $("btnIn").addEventListener("click", openIn);
@@ -1535,13 +1594,11 @@ ${drawing ? `<drawing r:id="rId1"/>` : ""}
     return { name: `presence_${safeName()}_${S.view}.pdf`, data, type: "application/pdf" };
   }
   async function monthFiles() {
-    const m = S.view.slice(0,7), rows = await fetchMonths([m]);
+    const m = selMonth(), rows = await fetchMonths([m]);
     if (!rows.length) return null;
     const xlsx = { name: `tableau_de_bord_${safeName()}_${m}.xlsx`, type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       data: XLSXW.build({ site: S.site, periodLabel: monthLabel(m), rows, helpers: { fromKey, hhmm, byId: S.byId, dayKey }, month: m, logos: [S.logos.entreprise, S.logos.client] }) };
-    const pdf = { name: `tableau_de_bord_${safeName()}_${m}.pdf`, type: "application/pdf",
-      data: await buildMonthPdf({ site: S.site, periodLabel: monthLabel(m), st: monthStats(rows, m), logos: S.logos }) };
-    return { xlsx, pdf };
+    return { xlsx };
   }
   function backupFile() {
     const docs = LocalDB.dump();
@@ -1559,7 +1616,7 @@ ${drawing ? `<drawing r:id="rId1"/>` : ""}
     const titles = { day: evening ? "Envoi du soir" : "Envoyer la journée", month: "Envoyer le mois", backup: "Envoyer la sauvegarde" };
     $("tShare").textContent = titles[kind];
     $("shWhat").textContent = kind === "day" ? `Feuille de présence signée du ${longDate(fromKey(S.view))} (PDF).`
-      : kind === "month" ? `Tableau de bord de ${monthLabel(S.view.slice(0, 7)).toLowerCase()}.`
+      : kind === "month" ? `Tableau de bord du mois : ${monthLabel(selMonth())}.`
       : "Tout le registre de la tablette, pour le mettre à l'abri. À garder dans ta boîte mail.";
     $("dlgShare").showModal();
     try {
@@ -1570,24 +1627,36 @@ ${drawing ? `<drawing r:id="rId1"/>` : ""}
       } else if (kind === "month") {
         const fs = await monthFiles();
         if (!fs) { $("shGo").textContent = "Aucun pointage ce mois-ci"; return; }
-        // L'Excel part directement si Android l'accepte ; sinon on envoie le tableau de bord en PDF et l'Excel est enregistré sur la tablette
-        pending = canShareFile(fs.xlsx) ? { kind, share: fs.xlsx, extra: null } : { kind, share: fs.pdf, extra: fs.xlsx };
-        if (pending.extra) $("shWhat").textContent += " Envoyé en PDF ; l'Excel est enregistré dans Téléchargements.";
+        // Le mois part toujours en Excel. Si Android refuse de le joindre, il est enregistré dans Téléchargements puis Gmail s'ouvre.
+        if (canShareFile(fs.xlsx)) pending = { kind, share: fs.xlsx, extra: null };
+        else {
+          pending = { kind, share: null, extra: null, download: fs.xlsx };
+          $("shWhat").textContent += " Android ne permet pas de joindre un Excel automatiquement : il sera enregistré dans Téléchargements, puis Gmail s'ouvrira pour que tu l'ajoutes avec le trombone 📎.";
+        }
       } else pending = { kind, share: backupFile(), extra: null };
     } catch (err) { console.error(err); $("shGo").textContent = "Préparation impossible"; return; }
-    $("shGo").disabled = false; $("shGo").textContent = "Envoyer";
+    $("shGo").disabled = false; $("shGo").textContent = pending && pending.download ? "Enregistrer et ouvrir Gmail" : "Envoyer";
   }
-  $("sendDay").addEventListener("click", () => openSend("day"));
-  $("sendMonth").addEventListener("click", () => openSend("month"));
+  $("sendDay").addEventListener("click", () => { $("dlgLogos").close(); openSend("day"); });
+  $("sendMonth").addEventListener("click", () => { $("dlgLogos").close(); openSend("month"); });
   $("bkSend").addEventListener("click", () => { $("dlgLogos").close(); openSend("backup"); });
   function openShare(evening) { openSend("day", evening); }
 
   $("formShare").addEventListener("submit", async e => {
     e.preventDefault();
     if (!pending) return;
-    const p = pending, f = p.share;
+    const p = pending;
+    if (p.download) {
+      const x = p.download, subj = `Pointage ${S.site || "chantier"} — tableau de bord ${monthLabel(selMonth())}`;
+      await save(x.name, x.data);
+      $("dlgShare").close();
+      toast(`Excel enregistré dans Téléchargements : ${x.name}. Ajoute-le au mail avec le trombone.`);
+      setTimeout(() => { location.href = `mailto:?subject=${encodeURIComponent(subj)}&body=${encodeURIComponent("Pièce jointe : " + x.name + " (dossier Téléchargements)")}`; }, 600);
+      return;
+    }
+    const f = p.share;
     const file = new File([f.data], f.name, { type: f.type });
-    const title = `Pointage ${S.site || "chantier"} — ${p.kind === "month" ? monthLabel(S.view.slice(0, 7)) : S.view}`;
+    const title = `Pointage ${S.site || "chantier"} — ${p.kind === "month" ? monthLabel(selMonth()) : S.view}`;
     const done = async () => {
       if (p.kind === "day") { try { await S.db.doc("config/envoi").set({ last: Date.now() }); } catch {} }
       if (p.kind === "backup") { try { await S.db.doc("config/sauvegarde").set({ last: Date.now() }); } catch {} }
@@ -1618,9 +1687,7 @@ ${drawing ? `<drawing r:id="rId1"/>` : ""}
     if (!S.db) return;
     const now = new Date(), startDay = fromKey(S.today).getTime();
     const due = now.getHours() >= HEURE_SOIR && S.todayRows.length > 0 && lastSent < startDay;
-    const was = $("evening").hidden;
-    $("evening").hidden = !due;
-    if (was !== !due) backupReminder();
+    $("evening").hidden = true;
     if (!due) return;
     const present = S.todayRows.filter(r => !r.td).length;
     $("eveTxt").textContent = present
@@ -1661,7 +1728,14 @@ ${drawing ? `<drawing r:id="rId1"/>` : ""}
     try { await S.db.doc("config/logos").set(next); toast("Logos enregistrés."); }
     catch (err) { toast(writeError(err)); }
   }
-  $("btnLogos").addEventListener("click", () => { paintLogos(); $("dlgLogos").showModal(); });
+  // Jour et mois à envoyer : par défaut le jour affiché dans le journal
+  const selMonth = () => $("selMonth").value || S.view.slice(0, 7);
+  $("btnLogos").addEventListener("click", () => {
+    $("selDay").value = S.view; $("selDay").max = S.today;
+    $("selMonth").value = S.view.slice(0, 7); $("selMonth").max = S.today.slice(0, 7);
+    paintLogos(); $("dlgLogos").showModal();
+  });
+  $("selDay").addEventListener("change", e => { const v = e.target.value; if (v) { setView(v > S.today ? S.today : v); $("selMonth").value = S.view.slice(0, 7); } });
   document.querySelectorAll("input[data-logo]").forEach(inp => inp.addEventListener("change", async e => {
     const f = e.target.files && e.target.files[0], k = e.target.dataset.logo; e.target.value = ""; if (!f) return;
     let data; try { data = await logoToPng(f); } catch { toast("Image illisible. Choisis un PNG ou un JPG."); return; }
