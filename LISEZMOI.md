@@ -54,7 +54,7 @@ Astuce : configurer sur la tablette un compte Gmail dédié au chantier, et s'en
 
 ## 3 ter. Logos et tableau de bord
 
-- **Réglages → Logos** : choisis le logo de ton entreprise et celui du client ou du chantier (image PNG ou JPG de la galerie). Ils apparaissent en haut de la feuille du jour, du tableau de bord PDF et de l'Excel. Ils sont gardés sur la tablette et inclus dans la sauvegarde.
+- **Logos** : le logo **Ensio** est intégré à l'appli (accueil et exports). Dans **Réglages → Logos**, ajoute le logo du **partenaire consortium** et celui du **client** (image PNG ou JPG). Ils apparaissent en haut du PDF du jour et de l'Excel, dans l'ordre Ensio · partenaire · client, et sont inclus dans la sauvegarde.
 - L'**Excel du mois** (et son équivalent PDF envoyé par « Envoyer le mois ») s'ouvre sur le **Tableau de bord** : 8 indicateurs (heures de présence du chantier, intervenants, jours d'activité, effectif moyen et pic, accueils sécurité du mois, cartes BTP vérifiées, départs non pointés, présence moyenne d'une société), un graphique des heures de présence par entreprise, un graphique de l'effectif par jour, puis le détail par entreprise et par jour. Les tuiles orange signalent ce qui est à régulariser.
 - **Heures de présence** = pour une société, un jour donné : de l'arrivée de sa première personne au départ de sa dernière personne. Ce n'est pas la somme des heures de ses intervenants. Pour le chantier : de la première arrivée au dernier départ de la journée.
 - Les onglets **Historique** (avec signatures) et **Synthèse sociétés** sont inchangés.
